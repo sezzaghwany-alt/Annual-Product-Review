@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrôle Qualité — Production</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f4f8;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--accent:#0369a1;--accent-light:#e0f2fe;--accent-dark:#075985;--success:#059669;--success-light:#d1fae5;--warning:#d97706;--warning-light:#fef3c7;--danger:#dc2626;--danger-light:#fee2e2;--purple:#7c3aed;--purple-light:#ede9fe;--mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--r:10px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shm:0 4px 12px rgba(0,0,0,.10)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-badge{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:10px;letter-spacing:.05em;font-family:var(--mono)}
+.logo-text{font-weight:700;font-size:14px;line-height:1.2}
+.logo-sub{font-size:11px;color:var(--text3);font-weight:400}
+nav{display:flex;gap:3px}
+.nb{padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:500;transition:all .15s;background:transparent;color:var(--text2)}
+.nb:hover{background:var(--surface2);color:var(--text)}
+.nb.active{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(3,105,161,.3)}
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--danger);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 5px;margin-left:4px}
+main{max-width:1300px;margin:0 auto;padding:22px 24px}
+.page{display:none;animation:fi .2s ease}
+.page.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+h2{font-size:19px;font-weight:700;margin-bottom:18px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.card-header{padding:13px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
+.kpi-value{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
+.kpi-label{font-size:11px;color:var(--text3);margin-top:5px;font-weight:500}
+.kpi-card.blue .kpi-value{color:var(--accent)}.kpi-card.green .kpi-value{color:var(--success)}.kpi-card.red .kpi-value{color:var(--danger)}.kpi-card.purple .kpi-value{color:var(--purple)}
+.sg{display:grid;grid-template-columns:repeat(7,1fr);gap:9px;margin-bottom:14px}
+.sg2{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;box-shadow:var(--sh)}
+.sc-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:600;margin-bottom:3px}
+.sc-value{font-size:15px;font-weight:700;font-family:var(--mono)}
+.cpk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;box-shadow:var(--sh);grid-column:span 2}
+.gauge-wrap{background:#e2e8f0;border-radius:99px;height:5px;margin:7px 0 3px;overflow:hidden}
+.gauge-bar{height:100%;border-radius:99px;transition:width .5s ease}
+.gauge-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3)}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:11px;font-weight:500;border:1px solid}
+.b-blue{background:var(--accent-light);color:var(--accent-dark);border-color:#bae6fd}
+.b-green{background:var(--success-light);color:#065f46;border-color:#a7f3d0}
+.b-red{background:var(--danger-light);color:#991b1b;border-color:#fca5a5}
+.b-gray{background:var(--surface2);color:var(--text2);border-color:var(--border2)}
+.b-purple{background:var(--purple-light);color:#4c1d95;border-color:#c4b5fd}
+.b-yellow{background:var(--warning-light);color:#92400e;border-color:#fcd34d}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead tr{background:var(--surface2)}
+th{padding:9px 13px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600;white-space:nowrap}
+td{padding:9px 13px;border-top:1px solid var(--border);color:var(--text)}
+tr:hover td{background:#f8fafc}
+.nc-row td{background:#fff5f5!important}.nc-row:hover td{background:#fee2e2!important}
+.mono{font-family:var(--mono)}
+.tr{text-align:right}.tc{text-align:center}
+.filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);margin-bottom:16px}
+.filter-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;align-items:end}
+.fg label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+select,input[type=date],input[type=text],input[type=number]{width:100%;border:1px solid var(--border2);border-radius:7px;padding:7px 9px;font-family:var(--sans);font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s;appearance:none}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;padding-right:26px}
+select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,105,161,.12)}
+.filter-meta{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);margin-bottom:16px}
+.chart-title{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.chart-wrap{position:relative;height:300px}
+.interp-card{background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd;border-radius:var(--r);padding:14px 18px;margin-bottom:16px}
+.interp-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-dark);margin-bottom:6px}
+.interp-text{font-size:13px;color:#0c4a6e;line-height:1.6}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.fg-form label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:16px 0 9px;padding-bottom:7px;border-top:1px solid var(--border)}
+.param-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pg label{display:block;font-size:11px;font-weight:500;color:var(--text2);margin-bottom:3px}
+.pg .hint{font-size:10px;color:var(--text3)}
+.input-nc{border-color:var(--danger)!important;background:#fff5f5!important}
+.nc-hint{font-size:10px;color:var(--danger);margin-top:2px}
+.btn{padding:8px 16px;border-radius:7px;border:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(3,105,161,.25)}.btn-primary:hover{background:var(--accent-dark)}.btn-primary:disabled{background:#cbd5e1;cursor:not-allowed;box-shadow:none}
+.btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--danger-light);color:var(--danger);border:1px solid #fca5a5}.btn-danger:hover{background:#fca5a5}
+.btn-success{background:var(--success-light);color:var(--success);border:1px solid #a7f3d0}.btn-success:hover{background:#a7f3d0}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.alert-card{background:#fff5f5;border:1px solid #fca5a5;border-radius:var(--r);padding:14px 18px;margin-bottom:14px}
+.alert-title{font-weight:600;color:#991b1b;font-size:13px;margin-bottom:8px}
+.empty{text-align:center;padding:50px 20px;color:var(--text3)}
+.empty-icon{font-size:42px;margin-bottom:10px}
+#notification{position:fixed;top:14px;right:14px;z-index:9999;padding:11px 18px;border-radius:9px;color:#fff;font-size:13px;font-weight:500;box-shadow:var(--shm);transform:translateY(-8px);opacity:0;transition:all .25s;pointer-events:none}
+#notification.show{transform:translateY(0);opacity:1}
+#notification.success{background:var(--success)}#notification.error{background:var(--danger)}
+.mb14{margin-bottom:14px}.mb18{margin-bottom:18px}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mh240{max-height:240px;overflow-y:auto}
+.action-btn{font-size:11px;background:var(--accent-light);color:var(--accent-dark);border:none;border-radius:6px;padding:4px 9px;cursor:pointer;font-weight:600;font-family:var(--sans);transition:background .15s}
+.action-btn:hover{background:#bae6fd}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:var(--r);box-shadow:var(--shm);width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:24px}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);padding:2px 6px;border-radius:5px}
+.modal-close:hover{background:var(--surface2)}
+/* SPECS TABLE */
+.spec-table-wrap{overflow-x:auto}
+.spec-table{width:100%;border-collapse:collapse;font-size:12px}
+.spec-table th{padding:8px 12px;background:var(--surface2);text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600;border:1px solid var(--border);white-space:nowrap}
+.spec-table td{padding:8px 12px;border:1px solid var(--border);vertical-align:middle}
+.spec-table tr:hover td{background:#f8fafc}
+.spec-val{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text)}
+.spec-range{font-size:10px;color:var(--text3);margin-top:1px}
+.spec-na{color:var(--text3);font-style:italic;font-size:11px}
+/* Search */
+.search-bar{position:relative;width:260px}
+.search-bar input{padding-left:30px}
+.search-bar::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;pointer-events:none}
+@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.sg{grid-template-columns:repeat(3,1fr)}.sg2{grid-template-columns:repeat(2,1fr)}.filter-row{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}.param-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="notification"></div>
+
+<!-- MODAL produit -->
+<div class="modal-overlay" id="modal-produit">
+<div class="modal">
+  <div class="modal-title">
+    <span id="modal-title-text">Ajouter un produit</span>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="form-grid">
+    <div class="fg-form"><label>Code *</label><input type="text" id="m-code" placeholder="ex: PFF035"></div>
+    <div class="fg-form"><label>Type *</label>
+      <select id="m-type" onchange="renderFixedLimitsSection()">
+        <option>Solution Dialyse Acide</option>
+        <option>Solution Dialyse Bicarbonate</option>
+        <option>Cartouche</option>
+        <option>Poches stériles Chlorures</option>
+        <option>Poches stériles Glucose</option>
+      </select>
+    </div>
+    <div class="fg-form" style="grid-column:span 2"><label>Désignation *</label><input type="text" id="m-desig" placeholder="ex: ARWACIDE K+ ..."></div>
+  </div>
+  <div class="section-title" style="margin-top:4px">Valeurs cibles (spécifications ±%)</div>
+  <div class="param-grid">
+    <div class="pg"><label>Sodium (±2,5%)</label><input type="number" step="any" id="m-sodium" placeholder="—"></div>
+    <div class="pg"><label>Potassium (±5%)</label><input type="number" step="any" id="m-potassium" placeholder="—"></div>
+    <div class="pg"><label>Calcium (±5%)</label><input type="number" step="any" id="m-calcium" placeholder="—"></div>
+    <div class="pg"><label>Magnésium (±5%)</label><input type="number" step="any" id="m-magnesium" placeholder="—"></div>
+    <div class="pg"><label>Chlorures (±5%)</label><input type="number" step="any" id="m-chlorures" placeholder="—"></div>
+    <div class="pg"><label>Acétates (±5%)</label><input type="number" step="any" id="m-acetates" placeholder="—"></div>
+    <div class="pg"><label>Glucose (±5%)</label><input type="number" step="any" id="m-glucose" placeholder="—"></div>
+    <div class="pg"><label>Bicarbonates (±5%)</label><input type="number" step="any" id="m-bicarbonates" placeholder="—"></div>
+    <div class="pg"><label>Chlorure de sodium (±5%)</label><input type="number" step="any" id="m-chlorna" placeholder="—"></div>
+    <div class="pg"><label>Rendement (±2,5%)</label><input type="number" step="any" id="m-rendement" placeholder="97.5"></div>
+  </div>
+  <div class="section-title">Limites fixes — pH / Poids / Osmolalité
+    <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0"> — selon le type de produit sélectionné</span>
+  </div>
+  <div id="m-fixed-limits-section" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px"></div>
+  <div style="margin-top:18px;display:flex;gap:10px">
+    <button class="btn btn-primary" onclick="saveProduct()">💾 Enregistrer</button>
+    <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+    <button class="btn btn-danger" id="btn-delete-product" style="margin-left:auto;display:none" onclick="deleteProduct()">🗑 Supprimer</button>
+  </div>
+</div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-badge">APR</div>
+    <div>
+      <div class="logo-text">Contrôle Qualité</div>
+      <div class="logo-sub">Paramètres de Production</div>
+    </div>
+  </div>
+  <nav>
+    <button class="nb active" onclick="showPage('dashboard')">📊 <span class="nl">Tableau de bord</span></button>
+    <button class="nb" onclick="showPage('analyse')">📈 <span class="nl">Analyse</span></button>
+    <button class="nb" onclick="showPage('specs')">📋 <span class="nl">Spécifications</span></button>
+    <button class="nb" onclick="showPage('saisie')">✏️ <span class="nl">Saisie</span></button>
+    <button class="nb" id="nav-alertes" onclick="showPage('alertes')">🔔 <span class="nl">Alertes</span></button>
+  </nav>
+</header>
+
+<main>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <h2>Tableau de bord</h2>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="card mb18">
+    <div class="card-header">Résumé par produit
+      <button class="btn btn-primary btn-sm" onclick="openModal()">+ Ajouter un produit</button>
+    </div>
+    <div class="tw"><table id="product-table">
+      <thead><tr><th>Code</th><th>Désignation</th><th>Type</th><th class="tc">Lots lib.</th><th class="tc">NC</th><th class="tc">Actions</th></tr></thead>
+      <tbody id="product-tbody"></tbody>
+    </table></div>
+  </div>
+  <div id="dash-alerts-preview"></div>
+</div>
+
+<!-- ANALYSE -->
+<div class="page" id="page-analyse">
+  <h2>Analyse &amp; Graphiques de Capabilité</h2>
+  <div class="filters">
+    <div class="filter-row">
+      <div class="fg"><label>Produit</label><select id="f-code" onchange="onCodeChange()"></select></div>
+      <div class="fg"><label>Paramètre</label><select id="f-param" onchange="onFilterChange()"></select></div>
+      <div class="fg"><label>Statut</label><select id="f-statut" onchange="onFilterChange()"><option>IPC</option><option selected>Libération</option></select></div>
+      <div class="fg"><label>Date début</label><input type="date" id="f-debut" value="2025-01-01" onchange="onFilterChange()"></div>
+      <div class="fg"><label>Date fin</label><input type="date" id="f-fin" value="2025-12-31" onchange="onFilterChange()"></div>
+    </div>
+    <div class="filter-meta" id="filter-meta"></div>
+  </div>
+  <div class="sg" id="stat-grid"></div>
+  <div class="sg2" id="stat-grid2"></div>
+  <div class="chart-card">
+    <div class="chart-title"><span id="chart-title-text">Carte de contrôle</span><span id="chart-nc-badge"></span></div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  </div>
+  <div class="interp-card" id="interp-card" style="display:none">
+    <div class="interp-title">Interprétation automatique</div>
+    <div class="interp-text" id="interp-text"></div>
+  </div>
+  <div class="card">
+    <div class="card-header">Données des lots</div>
+    <div class="mh240"><div class="tw"><table>
+      <thead><tr><th>N° lot</th><th>Date lib.</th><th class="tr">Valeur</th><th class="tc">Statut</th></tr></thead>
+      <tbody id="lots-tbody"></tbody>
+    </table></div></div>
+  </div>
+</div>
+
+<!-- SPECS -->
+<div class="page" id="page-specs">
+  <div class="flex-between mb18">
+    <h2 style="margin:0">Spécifications des produits</h2>
+    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Ajouter un produit</button>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <div class="search-bar" style="width:220px"><input type="text" id="spec-search" placeholder="Rechercher..." oninput="renderSpecs()"></div>
+    <div class="fg" style="min-width:200px;margin:0">
+      <select id="spec-type-filter" onchange="renderSpecs()" style="border-radius:7px">
+        <option value="">Tous les types</option>
+        <option>Solution Dialyse Acide</option>
+        <option>Solution Dialyse Bicarbonate</option>
+        <option>Cartouche</option>
+        <option>Poches stériles Chlorures</option>
+        <option>Poches stériles Glucose</option>
+      </select>
+    </div>
+    <div style="font-size:12px;color:var(--text3)" id="specs-count"></div>
+  </div>
+  <div id="specs-content"></div>
+</div>
+
+<!-- SAISIE -->
+<div class="page" id="page-saisie">
+  <h2>Saisie d'un nouveau lot</h2>
+  <div class="card mb18" style="max-width:700px;padding:22px">
+    <div class="form-grid">
+      <div class="fg-form"><label>Produit *</label><select id="s-code" onchange="onSaisieProductChange()"></select></div>
+      <div class="fg-form"><label>N° lot *</label><input type="text" id="s-lot" placeholder="ex: 2501099D"></div>
+      <div class="fg-form"><label>Date de fabrication</label><input type="date" id="s-fab"></div>
+      <div class="fg-form"><label>Date de libération</label><input type="date" id="s-lib"></div>
+      <div class="fg-form"><label>Type de contrôle</label><select id="s-statut"><option>IPC</option><option selected>Libération</option></select></div>
+    </div>
+    <div class="section-title">Résultats analytiques</div>
+    <div class="param-grid" id="param-inputs"></div>
+    <div style="margin-top:18px;display:flex;gap:10px">
+      <button class="btn btn-primary" id="btn-save" onclick="saveLot()">💾 Enregistrer le lot</button>
+      <button class="btn btn-secondary" onclick="resetForm()">↺ Réinitialiser</button>
+    </div>
+  </div>
+  <div id="saved-lots-section" style="display:none">
+    <div class="card">
+      <div class="card-header" id="saved-lots-header">Lots saisis</div>
+      <div class="tw"><table><thead><tr><th>Code</th><th>N° lot</th><th>Date fab.</th><th>Date lib.</th><th>Statut</th></tr></thead>
+      <tbody id="saved-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTES -->
+<div class="page" id="page-alertes">
+  <div class="flex-between mb18">
+    <h2 style="margin:0">Alertes de non-conformité</h2>
+    <span id="alertes-badge"></span>
+  </div>
+  <div id="alertes-content"></div>
+</div>
+
+</main>
+<script>
+const BD_RAW=[["PFF005","2025-01-17","2501009D","2025-02-05","IPC",null,null,null,null,3821.35,101.31,190.71,null,2,null,null,null,null,null],["PFF005","2025-01-17","2501009D","2025-02-05","Libération",3572.24,69.31,52.65,17.42,3926.33,101.14,191.49,null,2,5831.6,97.5,null,null,null],["PFF005","2025-01-18","2501010D","2025-02-11","Libération",3539.62,70.85,53.19,17.55,3897.29,100.78,190.97,null,2,5832.2,97.62,null,null,null],["PFF005","2025-02-03","2501023D","2025-03-19","Libération",3585.83,71.36,52.19,17.55,3702.07,100.42,191.49,null,2.1,5838,96.64,null,null,null],["PFF005","2025-02-03","2502001D","2025-02-19","IPC",null,null,null,null,3637.6,101.62,192.99,null,2.1,null,null,null,null,null],["PFF005","2025-02-03","2502001D","2025-02-19","Libération",3572.24,72.13,53.35,17.42,3826.82,99.96,191.49,null,2.1,5829.3,97.43,null,null,null],["PFF005","2025-02-14","2502011D","2025-03-13","IPC",null,null,null,null,3785.08,102.69,189.92,null,2,null,null,null,null,null],["PFF005","2025-02-14","2502011D","2025-03-13","Libération",3618.46,69.55,50.36,17.83,3853.01,100.18,190.44,null,2,5839.1,98.56,null,null,null],["PFF005","2025-02-28","2502022D","2025-03-24","IPC",null,null,null,null,3802.54,101.67,191.76,null,2.1,null,null,null,null,null],["PFF005","2025-02-28","2502022D","2025-03-24","Libération",3607.58,69.06,52.23,17.69,3862.05,101.8,192.02,null,2.1,5831.6,97.5,null,null,null],["PFF005","2025-03-14","2503011D","2025-04-08","Libération",3629.33,69.57,53.27,17.42,3814.92,104.47,192.02,null,2.1,5838,96.39,null,null,null],["PFF005","2025-03-21","2503016D","2025-04-18","IPC",null,null,null,null,3798.73,100.6,191.23,null,2.1,null,null,null,null,null],["PFF005","2025-03-21","2503016D","2025-04-18","Libération",3520.59,68.55,51.52,16.87,3876.81,100.74,190.44,null,2.1,5832.8,97,null,null,null],["PFF005","2025-04-03","2504004D","2025-04-24","IPC",null,null,null,null,3802.06,103.08,193.33,null,2.1,null,null,null,null,null],["PFF005","2025-04-03","2504004D","2025-04-24","Libération",3607.58,71.87,52.86,18.1,3792.54,100.74,192.02,null,2.1,5838.8,98.22,null,null,null],["PFF005","2025-04-15","2504016D","2025-05-20","IPC",null,null,null,null,3768.75,102.91,191.76,null,2.1,null,null,null,null,null],["PFF005","2025-04-15","2504016D","2025-05-20","Libération",3580.4,70.08,52.69,17.42,3740.67,101.96,190.97,null,2.1,5839.4,97.28,null,null,null],["PFF005","2025-05-22","2505009D","2025-06-20","IPC",null,null,null,null,3741.74,100.22,191.36,null,2.1,null,null,null,null,null],["PFF005","2025-05-22","2505009D","2025-06-20","Libération",3629.33,67.52,51.86,17.55,3835.38,101.34,192.54,null,2.1,5835.6,99.48,null,null,null],["PFF005","2025-05-23","2505010D","2025-06-11","IPC",null,null,null,null,3789.96,100.58,192.15,null,2.1,null,null,null,null,null],["PFF005","2025-05-23","2505010D","2025-06-11","Libération",3629.33,67.78,52.44,17.14,3870.12,100.54,192.54,null,2.1,5834.4,99.14,null,null,null],["PFF005","2025-05-24","2505011D","2025-06-20","IPC",null,null,null,null,3797.54,101.07,192.02,null,2,null,null,null,null,null],["PFF005","2025-05-24","2505011D","2025-06-20","Libération",3531.46,69.82,52.36,17.55,3784.93,101.58,191.49,null,2,5831.5,98.91,null,null,null],["PFF005","2025-06-03","2506002D","2025-06-20","IPC",null,null,null,null,3789.5,101.57,190.27,null,2,null,null,null,null,null],["PFF005","2025-06-03","2506002D","2025-06-20","Libération",3694.58,68.8,51.28,17.69,3763.04,101.78,189.92,null,2,5837,98.99,null,null,null],["PFF005","2025-06-05","2506005D","2025-06-24","IPC",null,null,null,null,3742.81,102.3,192.55,null,2,null,null,null,null,null],["PFF005","2025-06-05","2506005D","2025-06-24","Libération",3664.67,69.31,52.69,17.97,3826.81,101.56,193.07,null,2,5831.4,98.89,null,null,null],["PFF005","2025-06-11","2506007D","2025-07-28","IPC",null,null,null,null,3786.35,101.13,192.19,null,2.1,null,null,null,null,null],["PFF005","2025-06-11","2506007D","2025-07-28","Libération",3672.83,69.82,53.56,17.28,3741.15,101.68,191.49,null,2.11,5831,99.19,null,null,null],["PFF005","2025-06-13","2506011D","2025-07-30","IPC",null,null,null,null,3734.96,100.81,195.03,null,2.1,null,null,null,null,null],["PFF005","2025-06-13","2506011D","2025-07-30","Libération",3634.77,71.61,51.65,17.55,3713.54,100.44,193.59,null,2.1,5834.5,99.12,null,null,null],["PFF005","2025-06-19","2506016D","2025-07-21","IPC",null,null,null,null,3803.61,102.35,191.76,null,2,null,null,null,null,null],["PFF005","2025-06-19","2506016D","2025-07-21","Libération",3623.89,69.82,52.56,17.55,3736.86,101.76,190.97,null,2,5833,99.5,null,null,null],["PFF005","2025-06-20","2506017D","2025-07-10","IPC",null,null,null,null,3799.57,101.97,192.41,null,2,null,null,null,null,null],["PFF005","2025-06-20","2506017D","2025-07-10","Libération",3596.71,69.06,51.86,17.97,3780.65,101.22,190.44,null,2,5837.5,99.21,null,null,null],["PFF005","2025-07-02","2507003D","2025-09-04","IPC",null,null,null,null,3761.73,101.62,190.71,null,2.1,null,null,null,null,null],["PFF005","2025-07-02","2507003D","2025-09-04","Libération",3629.33,70.08,53.15,17.55,3748.76,100.66,189.92,null,2.1,5843.9,99.15,null,null,null],["PFF005","2025-07-03","2507004D","2025-08-07","IPC",null,null,null,null,3782.67,101.55,191.36,null,2.1,null,null,null,null,null],["PFF005","2025-07-03","2507004D","2025-08-07","Libération",3642.92,68.42,51.57,17.42,3776.36,100.72,190.44,null,2.1,5838.2,99.43,null,null,null],["PFF005","2025-07-04","2507005D","2025-07-17","IPC",null,null,null,null,3763.99,101.78,191.49,null,2.1,null,null,null,null,null],["PFF005","2025-07-04","2507005D","2025-07-17","Libération",3626.61,70.85,52.77,17.01,3807.3,100.38,190.97,null,2.1,5836.7,99.2,null,null,null],["PFF005","2025-07-17","2507017D","2025-08-05","IPC",null,null,null,null,3769.46,102.16,191.23,null,2,null,null,null,null,null],["PFF005","2025-07-17","2507017D","2025-08-05","Libération",3667.39,70.59,53.19,17.97,3754.47,101.14,190.44,null,2,5838.9,98.85,null,null,null],["PFF005","2025-08-02","2508002D","2025-08-13","IPC",null,null,null,null,3772.54,101.96,190.71,null,2.1,null,null,null,null,null],["PFF005","2025-08-02","2508002D","2025-08-13","Libération",3640.21,69.06,53.73,17.55,3813.01,100.92,190.44,null,2.1,5830.7,98.06,null,null,null],["PFF005","2025-08-08","2508010D","2025-09-04","IPC",null,null,null,null,3774.44,101.32,191.49,null,2.1,null,null,null,null,null],["PFF005","2025-08-08","2508010D","2025-09-04","Libération",3610.3,69.31,51.23,17.28,3780.16,100.32,191.49,null,2.1,5845,99.03,null,null,null],["PFF005","2025-09-04","2509005D","2025-09-16","IPC",null,null,null,null,3838.36,101.17,191.76,null,2.1,null,null,null,null,null],["PFF005","2025-09-04","2509005D","2025-09-16","Libération",3566.8,70.34,50.61,17.83,3781.11,101.16,193.59,null,2.1,5846,98.48,null,null,null],["PFF005","2025-09-08","2509008D","2025-10-08","IPC",null,null,null,null,3792.78,101.58,191.23,null,2.1,null,null,null,null,null],["PFF005","2025-09-08","2509008D","2025-10-08","Libération",3637.49,71.36,53.1,17.28,3946.33,100.98,192.02,null,2.1,5837.7,98.76,null,null,null],["PFF005","2025-09-09","2509009D","2025-10-13","IPC",null,null,null,null,3777.46,99.71,192.37,null,2.1,null,null,null,null,null],["PFF005","2025-09-09","2509009D","2025-10-13","Libération",3629.33,72.89,51.44,17.83,3802.54,102,193.07,null,2.1,5840.1,99.06,null,null,null],["PFF005","2025-09-10","2509010D","2025-10-08","IPC",null,null,null,null,3826.18,102.04,192.63,null,2.1,null,null,null,null,null],["PFF005","2025-09-10","2509010D","2025-10-08","Libération",3637.49,70.08,51.4,17.42,3833.01,101.32,193.59,null,2.1,5838.8,99.36,null,null,null],["PFF005","2025-09-11","2509011D","2025-09-25","IPC",null,null,null,null,3798.61,102.12,191.63,null,2.1,null,null,null,null,null],["PFF005","2025-09-11","2509011D","2025-09-25","Libération",3623.89,70.85,51.23,17.69,3764.92,102.06,190.44,null,2.1,5840.4,98.61,null,null,null],["PFF005","2025-09-22","2509019D","2025-10-02","IPC",null,null,null,null,3862.06,103.81,190.71,null,2.1,null,null,null,null,null],["PFF005","2025-09-22","2509019D","2025-10-02","Libération",3686.42,70.59,51.9,17.14,3963.47,103.58,191.49,null,2.1,5837.6,98.09,null,null,null],["PFF005","2025-09-23","2509020D","2025-10-22","IPC",null,null,null,null,3871.82,103.01,192.68,null,2,null,null,null,null,null],["PFF005","2025-09-23","2509020D","2025-10-22","Libération",3574.96,67.27,52.15,17.83,3973.47,103.12,192.54,null,2,5838.8,99.32,null,null,null],["PFF005","2025-09-24","2509021D","2025-11-03","IPC",null,null,null,null,3889.2,103,193.07,null,2,null,null,null,null,null],["PFF005","2025-09-24","2509021D","2025-11-03","Libération",3602.15,69.31,52.15,17.55,3857.77,102.54,192.54,null,2,5839.9,99.11,null,null,null],["PFF005","2025-09-25","2509022D","2025-11-24","IPC",null,null,null,null,3860.75,103.04,192.69,null,2.03,null,null,null,null,null],["PFF005","2025-09-25","2509022D","2025-11-24","Libération",3596.71,69.06,52.31,17.55,3791.58,103.08,192.54,null,2,5840.2,99.09,null,null,null],["PFF005","2025-09-27","2509024D","2025-11-06","IPC",null,null,null,null,3840.63,102.64,192.81,null,2.01,null,null,null,null,null],["PFF005","2025-09-27","2509024D","2025-11-06","Libération",3648.36,70.85,51.19,16.87,3883,102.56,193.07,null,2,5842.9,98.91,null,null,null],["PFF005","2025-10-03","2510003D","2025-10-16","IPC",null,null,null,null,3850.27,102.54,192.28,null,2,null,null,null,null,null],["PFF005","2025-10-03","2510003D","2025-10-16","Libération",3659.24,68.29,50.61,17.55,3872.05,102.46,193.07,null,2,5840,98.91,null,null,null],["PFF005","2025-10-08","2510007D","2025-12-10","IPC",null,null,null,null,3816.94,101.87,192.15,null,2.02,null,null,null,null,null],["PFF005","2025-10-08","2510007D","2025-12-10","Libération",3675.55,70.85,53.77,17.14,3843.48,102.84,192.54,null,2,5840.7,99.03,null,null,null],["PFF005","2025-10-10","2510009D","2025-10-18","IPC",null,null,null,null,3805.15,102.63,190.84,null,2,null,null,null,null,null],["PFF005","2025-10-10","2510009D","2025-10-18","Libération",3585.83,70.08,50.4,17.28,3782.54,102.66,190.44,null,2,5839.6,98.41,null,null,null],["PFF005","2025-10-25","2510024D","2025-10-31","IPC",null,null,null,null,3733.26,102.79,191.49,null,2.1,null,null,null,null,null],["PFF005","2025-10-25","2510024D","2025-10-31","Libération",3623.89,70.34,53.31,17.01,3742.06,102.4,191.49,null,2.1,5839.4,97.21,null,null,null],["PFF005","2025-11-01","2511001D","2025-11-14","Libération",3656.52,69.06,51.65,17.01,3838.72,102.08,192.02,null,2.1,5832.2,95.74," ",null,null],["PFF005","2025-11-14","2511004D","2025-11-23","IPC",null,null,null,null,3891.82,102.57,191.76,null,2.1,null,null,null,null,null],["PFF005","2025-11-14","2511004D","2025-11-23","Libération",3632.05,69.82,51.52,17.42,3795.87,103.08,192.02,null,2.1,5838.9,97.84,null,null,null],["PFF005","2025-11-22","2511005D","2025-11-28","Libération",3645.64,71.61,51.77,17.97,3803.01,101.56,196.74,null,2.1,5843.8,95.28,null,null,null],["PFF005","2025-11-24","2511009D","2025-12-08","IPC",null,null,null,null,3760.64,104.1,190.44,null,2.02,null,null,null,null,null],["PFF005","2025-11-24","2511009D","2025-12-08","Libération",3547.77,69.06,51.77,17.28,3734.45,103.02,189.92,null,2,5840.9,97.96,null,null,null],["PFF005","2025-11-28","2511013D","2025-12-12","IPC",null,null,null,null,3788.09,102.28,191.49,null,2.02,null,null,null,null,null],["PFF005","2025-11-28","2511013D","2025-12-12","Libération",3553.21,66.5,50.82,17.28,3831.58,104.22,192.02,null,2,5848.2,98.1,null,null,null],["PFF005","2025-12-04","2512006D","2025-12-25","IPC",null,null,null,null,3834.45,102.4,191.41,null,2.1,null,null,null,null,null],["PFF005","2025-12-04","2512006D","2025-12-25","Libération",3569.52,69.32,50.03,17.55,3763.01,102.28,192.54,null,2.1,5838.9,99.25,null,null,null],["PFF005","2025-12-06","2512009D","2025-01-06","IPC",null,null,null,null,3816.59,102.69,190.97,null,2.1,null,null,null,null,null],["PFF005","2025-12-06","2512009D","2025-01-06","Libération",3602.15,69.57,52.19,17.42,3815.39,103.78,190.97,null,2.1,5839.1,98.53,null,null,null],["PFF005","2025-12-11","2512016D","2026-01-07","IPC",null,null,null,null,3834.6,103.67,192.19,null,2.1,null,null,null,null,null],["PFF005","2025-12-11","2512016D","2026-01-07","Libération",3653.8,71.1,52.32,17.97,3876.81,104.8,190.97,null,2.1,5844.1,98.43,null,null,null],["PFF005","2025-12-12","2512018D","2026-01-14","IPC",null,null,null,null,3838.56,103.7,191.76,null,2.1,null,null,null,null,null],["PFF005","2025-12-12","2512018D","2026-01-14","Libération",3651.08,70.08,51.15,17.55,3816.34,103.38,191.49,null,2.1,5841.1,99.26,null,null,null],["PFF005","2025-12-13","2512019D","2025-12-30","IPC",null,null,null,null,3881.1,104.19,191.5,null,2.1,null,null,null,null,null],["PFF005","2025-12-13","2512019D","2025-12-30","Libération",3632.05,69.57,51.07,17.55,3800.63,102.94,191.49,null,2.1,5846.1,97.81,null,null,null],["PFF005","2026-02-11","2602011D","2026-02-23","IPC",null,null,null,null,3777.78,103.07,192.02,null,2.2,null,null,null,null,null],["PFF005","2026-02-11","2602011D","2026-02-23","Libération",3629.33,68.8,51.48,17.01,3790.16,101.72,192.02,null,2.3,5836.2,97.77,null,null,null],["PFF009","2025-01-06","2501001D","2025-02-05","IPC",null,null,null,null,406.26,null,null,786.6,7.98,null,null,null,null,null],["PFF009","2025-01-06","2501001D","2025-02-05","Libération",1176.61,null,null,null,404.32,null,null,792.64,8,10626.9,98.75,null,null,null],["PFF009","2025-01-07","2501002D","2025-02-11","IPC",null,null,null,null,403.33,null,null,781.7,8.01,null,null,null,null,null],["PFF009","2025-01-07","2501002D","2025-02-11","Libération",1172.26,null,null,null,408.22,null,null,783.49,8,10628.4,98.58,null,null,null],["PFF009","2025-01-08","2501003D","2025-02-10","IPC",null,null,null,null,398.33,null,null,786.07,8.01,null,null,null,null,null],["PFF009","2025-01-08","2501003D","2025-02-10","Libération",1179.87,null,null,null,403.02,null,null,797.89,8,10633.3,98.81,null,null,null],["PFF009","2025-01-09","2501004D","2025-02-06","IPC",null,null,null,null,403.36,null,null,784.82,7.99,null,null,null,null,null],["PFF009","2025-01-09","2501004D","2025-02-06","Libération",1212.5,null,null,null,402.82,null,null,797.39,8,10632.8,98.87,null,null,null],["PFF009","2025-01-10","2501005D","2025-02-10","IPC",null,null,null,null,405.58,null,null,788.09,8,null,null,null,null,null],["PFF009","2025-01-10","2501005D","2025-02-10","Libération",1170.09,null,null,null,406.52,null,null,792.74,7.8,10634,98.69,null,null,null],["PFF009","2025-01-20","2501011D","2025-02-12","IPC",null,null,null,null,407.48,null,null,794.77,7.91,null,null,null,null,null],["PFF009","2025-01-20","2501011D","2025-02-12","Libération",1192.92,null,null,null,394.27,null,null,785.24,7.9,10631.8,98.92,null,null,null],["PFF009","2025-01-21","2501012D","2025-02-17","IPC",null,null,null,null,402.88,null,null,785.69,8,null,null,null,null,null],["PFF009","2025-01-21","2501012D","2025-02-17","Libération",1197.27,null,null,null,408.42,null,null,779.59,8,10630.8,98.91,null,null,null],["PFF009","2025-01-22","2501013D","2025-02-17","IPC",null,null,null,null,403.58,null,null,782.64,8,null,null,null,null,null],["PFF009","2025-01-22","2501013D","2025-02-17","Libération",1186.4,null,null,null,405.82,null,null,790.69,8,10631.2,98.6,null,null,null],["PFF009","2025-01-23","2501014D","2025-02-18","IPC",null,null,null,null,406.22,null,null,788.02,8,null,null,null,null,null],["PFF009","2025-01-23","2501014D","2025-02-18","Libération",1187.48,null,null,null,406.92,null,null,793.44,7.9,10633.5,98.75,null,null,null],["PFF009","2025-01-24","2501015D","2025-02-18","IPC",null,null,null,null,402.03,null,null,787.42,8,null,null,null,null,null],["PFF009","2025-01-24","2501015D","2025-02-18","Libération",1196.18,null,null,null,403.97,null,null,791.69,8,10633.8,98.69,null,null,null],["PFF009","2025-02-17","2502012D","2025-03-10","IPC",null,null,null,null,407.27,null,null,786.26,8,null,null,null,null,null],["PFF009","2025-02-17","2502012D","2025-03-10","Libération",1198.36,null,null,null,408.62,null,null,779.64,7.9,10632.1,99.09,null,null,null],["PFF009","2025-02-18","2502013D","2025-03-18","IPC",null,null,null,null,401.2,null,null,780.07,8,null,null,null,null,null],["PFF009","2025-02-18","2502013D","2025-03-18","Libération",1197.27,null,null,null,402.62,null,null,782.99,8,10635.7,99.04,null,null,null],["PFF009","2025-02-19","2502014D","2025-03-18","IPC",null,null,null,null,403.26,null,null,787.02,7.99,null,null,null,null,null],["PFF009","2025-02-19","2502014D","2025-03-18","Libération",1175.52,null,null,null,403.72,null,null,787.24,8,10633.7,98.73,null,null,null],["PFF009","2025-02-20","2502015D","2025-03-18","IPC",null,null,null,null,401.22,null,null,782.84,8,null,null,null,null,null],["PFF009","2025-02-20","2502015D","2025-03-18","Libération",1198.36,null,null,null,401.22,null,null,778.54,8,10633.6,99.02,null,null,null],["PFF009","2025-02-21","2502016D","2025-03-18","IPC",null,null,null,null,401.02,null,null,783.4,8.01,null,null,null,null,null],["PFF009","2025-02-21","2502016D","2025-03-18","Libération",1185.31,null,null,null,400.92,null,null,792.84,8,10632.4,98.97,null,null,null],["PFF009","2025-03-03","2503001D","2025-04-24","IPC",null,null,null,null,399.97,null,null,785.02,8.02,null,null,null,null,null],["PFF009","2025-03-03","2503001D","2025-04-24","Libération",1183.13,null,null,null,402.82,null,null,782.07,8,10632.4,98.18,null,null,null],["PFF009","2025-03-04","2503002D","2025-04-17","IPC",null,null,null,null,401.52,null,null,784.9,8.02,null,null,null,null,null],["PFF009","2025-03-04","2503002D","2025-04-17","Libération",1166.82,null,null,null,401.77,null,null,789.68,8,10630.5,98.41,null,null,null],["PFF009","2025-03-05","2503003D","2025-04-14","IPC",null,null,null,null,400.37,null,null,785.45,7.99,null,null,null,null,null],["PFF009","2025-03-05","2503003D","2025-04-14","Libération",1188.57,null,null,null,404.72,null,null,783.52,8,10626.5,98.12,null,null,null],["PFF009","2025-03-06","2503004D","2025-05-07","IPC",null,null,null,null,398.67,null,null,784.7,7.98,null,null,null,null,null],["PFF009","2025-03-06","2503004D","2025-05-07","Libération",1195.1,null,null,null,399.82,null,null,789.33,8,10626.5,98.25,null,null,null],["PFF009","2025-03-07","2503005D","2025-04-18","IPC",null,null,null,null,398.35,null,null,778.57,7.98,null,null,null,null,null],["PFF009","2025-03-07","2503005D","2025-04-18","Libération",1172.26,null,null,null,405.67,null,null,775.81,8,10634.9,98.32,null,null,null],["PFF009","2025-03-24","2503017D","2025-05-07","IPC",null,null,null,null,404.32,null,null,783.42,8.01,null,null,null,null,null],["PFF009","2025-03-24","2503017D","2025-05-07","Libération",1191.83,null,null,null,399.77,null,null,785.97,7.9,10635.3,98.45,null,null,null],["PFF009","2025-03-25","2503018D","2025-05-06","IPC",null,null,null,null,400.05,null,null,788.25,7.99,null,null,null,null,null],["PFF009","2025-03-25","2503018D","2025-05-06","Libération",1197.27,null,null,null,404.42,null,null,789.08,7.9,10632.7,98.43,null,null,null],["PFF009","2025-03-26","2503019D","2025-05-07","IPC",null,null,null,null,402.17,null,null,787.25,7.98,null,null,null,null,null],["PFF009","2025-03-26","2503019D","2025-05-07","Libération",1210.32,null,null,null,403.47,null,null,789.88,7.9,10628.5,98.51,null,null,null],["PFF009","2025-03-27","2503020D","2025-04-24","IPC",null,null,null,null,400.73,null,null,785.73,7.97,null,null,null,null,null],["PFF009","2025-03-27","2503020D","2025-04-24","Libération",1174.44,null,null,null,403.72,null,null,790.13,7.9,10630.7,98.28,null,null,null],["PFF009","2025-03-28","2503021D","2025-06-02","IPC",null,null,null,null,402.4,null,null,789.58,8,null,null,null,null,null],["PFF009","2025-03-28","2503021D","2025-06-02","Libération",1176.61,null,null,null,403.27,null,null,789.63,8,10631.4,98.42,null,null,null],["PFF009","2025-04-07","2504006D","2025-05-14","IPC",null,null,null,null,398.23,null,null,785.52,8.02,null,null,null,null,null],["PFF009","2025-04-07","2504006D","2025-05-14","Libération",1192.92,null,null,null,399.47,null,null,783.87,8,10633.1,99.14,null,null,null],["PFF009","2025-04-08","2504007D","2025-05-16","IPC",null,null,null,null,399.66,null,null,780.09,7.96,null,null,null,null,null],["PFF009","2025-04-08","2504007D","2025-05-16","Libération",1205.97,null,null,null,402.41,null,null,782.22,8,10630.6,99.12,null,null,null],["PFF009","2025-04-09","2504008D","2025-05-06","IPC",null,null,null,null,402.5,null,null,787.44,7.96,null,null,null,null,null],["PFF009","2025-04-09","2504008D","2025-05-06","Libération",1197.27,null,null,null,399.72,null,null,781.77,8,10632.7,98.89,null,null,null],["PFF009","2025-04-10","2504009D","2025-05-16","IPC",null,null,null,null,400.7,null,null,787.9,7.97,null,null,null,null,null],["PFF009","2025-04-10","2504009D","2025-05-16","Libération",1184.22,null,null,null,398.32,null,null,782.57,8,10633.2,98.81,null,null,null],["PFF009","2025-04-11","2504010D","2025-05-16","IPC",null,null,null,null,403.34,null,null,787.58,7.98,null,null,null,null,null],["PFF009","2025-04-11","2504010D","2025-05-16","Libération",1197.27,null,null,null,402.76,null,null,793.53,8,10633.8,98.81,null,null,null],["PFF009","2025-04-12","2504011D","2025-05-19","IPC",null,null,null,null,401.42,null,null,785.07,7.94,null,null,null,null,null],["PFF009","2025-04-12","2504011D","2025-05-19","Libération",1196.18,null,null,null,401.37,null,null,788.93,8,10631.8,98.42,null,null,null],["PFF009","2025-04-21","2504022D","2025-05-20","IPC",null,null,null,null,404.75,null,null,786.13,8,null,null,null,null,null],["PFF009","2025-04-21","2504022D","2025-05-20","Libération",1174.44,null,null,null,400.87,null,null,787.42,8,10634.4,99.28,null,null,null],["PFF009","2025-04-22","2504023D","2025-06-03","IPC",null,null,null,null,402.57,null,null,787.77,7.99,null,null,null,null,null],["PFF009","2025-04-22","2504023D","2025-06-03","Libération",1186.4,null,null,null,400.87,null,null,790.18,8,10634.2,98.99,null,null,null],["PFF009","2025-04-23","2504024D","2025-05-22","IPC",null,null,null,null,402.31,null,null,786.16,8,null,null,null,null,null],["PFF009","2025-04-23","2504024D","2025-05-22","Libération",1175.52,null,null,null,405.51,null,null,785.87,8,10630.5,98.91,null,null,null],["PFF009","2025-04-24","2504025D","2025-05-22","IPC",null,null,null,null,403.15,null,null,788.21,8.03,null,null,null,null,null],["PFF009","2025-04-24","2504025D","2025-05-22","Libération",1195.1,null,null,null,400.77,null,null,791.03,7.9,10637.8,99.14,null,null,null],["PFF009","2025-04-25","2504026D","2025-06-04","Libération",1188.57,null,null,null,402.81,null,null,795.53,8,10630.7,99.16,null,null,null],["PFF009","2025-04-26","2504027D","2025-06-03","IPC",null,null,null,null,402.71,null,null,783.47,8,null,null,null,null,null],["PFF009","2025-04-26","2504027D","2025-06-03","Libération",1188.57,null,null,null,410.51,null,null,787.93,8,10637.1,97.97,null,null,null],["PFF009","2025-05-12","2505001D","2025-06-05","IPC",null,null,null,null,397.68,null,null,782.77,8.17,null,null,null,null,null],["PFF009","2025-05-12","2505001D","2025-06-05","Libération",1165.74,null,null,null,395.02,null,null,780.42,8,10632.8,99.39,null,null,null],["PFF009","2025-05-13","2505002D","2025-07-17","IPC",null,null,null,null,399.08,null,null,787.89,8.17,null,null,null,null,null],["PFF009","2025-05-13","2505002D","2025-07-17","Libération",1187.48,null,null,null,398.82,null,null,782.82,8,10632.5,99.18,null,null,null],["PFF009","2025-05-14","2505003D","2025-06-11","IPC",null,null,null,null,398.85,null,null,782.39,8.13,null,null,null,null,null],["PFF009","2025-05-14","2505003D","2025-06-11","Libération",1183.13,null,null,null,394.67,null,null,782.77,8,10633.2,99.18,null,null,null],["PFF009","2025-05-15","2505004D","2025-07-31","IPC",null,null,null,null,397.09,null,null,784.93,8.15,null,null,null,null,null],["PFF009","2025-05-15","2505004D","2025-07-31","Libération",1170.09,null,null,null,398.17,null,null,786.12,7.9,10632.9,99.1,null,null,null],["PFF009","2025-05-16","2505005D","2025-06-13","IPC",null,null,null,null,397.21,null,null,783.25,8.14,null,null,null,null,null],["PFF009","2025-05-16","2505005D","2025-06-13","Libération",1158.12,null,null,null,396.87,null,null,781.67,8,10636,99.38,null,null,null],["PFF009","2025-05-26","2505012D","2025-06-20","IPC",null,null,null,null,400.05,null,null,787.16,8.09,null,null,null,null,null],["PFF009","2025-05-26","2505012D","2025-06-20","Libération",1178.79,null,null,null,399.42,null,null,782.92,7.9,10630.6,99.04,null,null,null],["PFF009","2025-05-27","2505013D","2025-07-30","IPC",null,null,null,null,400.45,null,null,784.45,8.16,null,null,null,null,null],["PFF009","2025-05-27","2505013D","2025-07-30","Libération",1175.52,null,null,null,395.02,null,null,784.02,8,10625.9,98.99,null,null,null],["PFF009","2025-05-28","2505014D","2025-06-24","IPC",null,null,null,null,401.83,null,null,784.97,8.08,null,null,null,null,null],["PFF009","2025-05-28","2505014D","2025-06-24","Libération",1185.31,null,null,null,400.62,null,null,782.77,8,10634.5,99.07,null,null,null],["PFF009","2025-05-29","2505015D","2025-07-28","IPC",null,null,null,null,400.85,null,null,786.29,8.08,null,null,null,null,null],["PFF009","2025-05-29","2505015D","2025-07-28","Libération",1197.27,null,null,null,399.37,null,null,787.83,8,10625.7,98.99,null,null,null],["PFF009","2025-06-23","2506019D","2025-07-30","IPC",null,null,null,null,400.03,null,null,782.76,8.1,null,null,null,null,null],["PFF009","2025-06-23","2506019D","2025-07-30","Libération",1172.26,null,null,null,399.92,null,null,791.45,8,10636.6,99.3,null,null,null],["PFF009","2025-06-24","2506020D","2025-07-21","IPC",null,null,null,null,400.87,null,null,782.65,8.08,null,null,null,null,null],["PFF009","2025-06-24","2506020D","2025-07-21","Libération",1183.13,null,null,null,397.57,null,null,785.2,8,10634.3,99.49,null,null,null],["PFF009","2025-06-25","2506021D","2025-07-31","IPC",null,null,null,null,401.09,null,null,779.41,8.06,null,null,null,null,null],["PFF009","2025-06-25","2506021D","2025-07-31","Libération",1185.31,null,null,null,400.32,null,null,773.02,8,10635.7,99.63,null,null,null],["PFF009","2025-06-26","2506025D","2025-08-05","Libération",1186.4,null,null,null,398.52,null,null,776.16,8.1,10625.6,97.74,null,null,null],["PFF009","2025-07-07","2507006D","2025-08-14","IPC",null,null,null,null,402.35,null,null,784.75,8.01,null,null,null,null,null],["PFF009","2025-07-07","2507006D","2025-08-14","Libération",1165.74,null,null,null,403.91,null,null,788.05,8,10637.8,99.31,null,null,null],["PFF009","2025-09-08","2507007D","2025-08-05","IPC",null,null,null,null,401.43,null,null,780.15,8.1,null,null,null,null,null],["PFF009","2025-09-08","2507007D","2025-08-05","Libération",1170.09,null,null,null,398.62,null,null,783.75,8.1,10636.1,99.59,null,null,null],["PFF009","2025-07-09","2507008D","2025-08-08","IPC",null,null,null,null,401.43,null,null,782.91,7.99,null,null,null,null,null],["PFF009","2025-07-09","2507008D","2025-08-08","Libération",1182.05,null,null,null,400.82,null,null,781.06,8,10634.1,99.57,null,null,null],["PFF009","2025-07-10","2507009D","2025-09-04","IPC",null,null,null,null,401.38,null,null,782.4,7.95,null,null,null,null,null],["PFF009","2025-07-10","2507009D","2025-09-04","Libération",1190.75,null,null,null,402.46,null,null,783.15,8,10631.9,99.55,null,null,null],["PFF009","2025-07-11","2507010D","2025-10-03","IPC",null,null,null,null,401.45,null,null,783.42,8.04,null,null,null,null,null],["PFF009","2025-07-11","2507010D","2025-10-03","Libération",1192.92,null,null,null,400.32,null,null,780.41,8.1,10631.9,99.47,null,null,null],["PFF009","2025-07-12","2507011D","2025-09-11","IPC",null,null,null,null,401.43,null,null,784.94,8,null,null,null,null,null],["PFF009","2025-07-12","2507011D","2025-09-11","Libération",1185.31,null,null,null,399.67,null,null,780.56,8,10637.7,99.18,null,null,null],["PFF009","2025-07-21","2507019D","2025-10-30","IPC",null,null,null,null,399.86,null,null,785.35,8.12,null,null,null,null,null],["PFF009","2025-07-21","2507019D","2025-10-30","Libération",1170.09,null,null,null,398.67,null,null,783.3,8,10630.2,99.45,null,null,null],["PFF009","2025-07-22","2507020D","2025-10-03","IPC",null,null,null,null,398.68,null,null,783.7,8.1,null,null,null,null,null],["PFF009","2025-07-22","2507020D","2025-10-03","Libération",1213.58,null,null,null,400.27,null,null,778.11,8.1,10634.6,99.53,null,null,null],["PFF009","2025-07-23","2507021D","2025-10-07","IPC",null,null,null,null,401.77,null,null,785.62,8.15,null,null,null,null,null],["PFF009","2025-07-23","2507021D","2025-10-07","Libération",1197.27,null,null,null,401.42,null,null,796.54,8.1,10634.5,99.49,null,null,null],["PFF009","2025-07-24","2507022D","2025-11-18","IPC",null,null,null,null,401.85,null,null,788.39,8.13,null,null,null,null,null],["PFF009","2025-07-24","2507022D","2025-11-18","Libération",1197.27,null,null,null,399.67,null,null,779.06,8.1,10637,99.43,null,null,null],["PFF009","2025-07-25","2507023D","2025-10-17","IPC",null,null,null,null,403.1,null,null,783.6,8.12,null,null,null,null,null],["PFF009","2025-07-25","2507023D","2025-10-17","Libération",1188.57,null,null,null,403.16,null,null,783.6,8.1,10631.9,99.59,null,null,null],["PFF009","2025-09-15","2509012D","2025-11-18","IPC",null,null,null,null,399.8,null,null,785.53,8.02,null,null,null,null,null],["PFF009","2025-09-15","2509012D","2025-11-18","Libération",1199.45,null,null,null,404.47,null,null,785.1,8,10635.3,99.12,null,null,null],["PFF009","2025-09-16","2509013D","2025-11-10","IPC",null,null,null,null,402.08,null,null,783.4,8.01,null,null,null,null,null],["PFF009","2025-09-16","2509013D","2025-11-10","Libération",1205.97,null,null,null,400.47,null,null,784.15,8.1,10634.5,98.95,null,null,null],["PFF009","2025-09-17","2509014D","2025-11-10","IPC",null,null,null,null,404.73,null,null,782.75,8.05,null,null,null,null,null],["PFF009","2025-09-17","2509014D","2025-11-10","Libération",1167.91,null,null,null,405.62,null,null,783.65,8.1,10633.2,99.14,null,null,null],["PFF009","2025-09-18","2509015D","2025-11-24","IPC",null,null,null,null,402.88,null,null,790.25,8.05,null,null,null,null,null],["PFF009","2025-09-18","2509015D","2025-11-24","Libération",1166.82,null,null,null,400.32,null,null,791.3,8,10629,98.94,null,null,null],["PFF009","2025-09-19","2509016D","2025-11-21","IPC",null,null,null,null,404.23,null,null,791.9,8,null,null,null,null,null],["PFF009","2025-09-19","2509016D","2025-11-21","Libération",1166.82,null,null,null,403.42,null,null,777.86,8.1,10634.2,98.61,null,null,null],["PFF009","2025-09-20","2509017D","2025-11-25","IPC",null,null,null,null,404.87,null,null,785.25,8.08,null,null,null,null,null],["PFF009","2025-09-20","2509017D","2025-11-25","Libération",1178.79,null,null,null,403.37,null,null,776.71,8,10628.4,98.43,null,null,null],["PFF009","2025-10-13","2510012D","2025-11-10","IPC",null,null,null,null,403.6,null,null,788.95,8.2,null,null,null,null,null],["PFF009","2025-10-13","2510012D","2025-11-10","Libération",1185.31,null,null,null,404.82,null,null,785.9,8.1,10636.6,99.17,null,null,null],["PFF009","2025-10-14","2510013D","2025-12-01","IPC",null,null,null,null,403.71,null,null,788.53,8.2,null,null,null,null,null],["PFF009","2025-10-14","2510013D","2025-12-01","Libération",1196.18,null,null,null,404.77,null,null,789.9,8.1,10634.4,99.07,null,null,null],["PFF009","2025-10-15","2510014D","2025-12-03","IPC",null,null,null,null,403.4,null,null,785.21,8.2,null,null,null,null,null],["PFF009","2025-10-15","2510014D","2025-12-03","Libération",1191.83,null,null,null,406.82,null,null,787.5,8.2,10637.5,98.89,null,null,null],["PFF009","2025-10-16","2510015D","2025-12-18","IPC",null,null,null,null,404.7,null,null,787.41,8.1,null,null,null,null,null],["PFF009","2025-10-16","2510015D","2025-12-18","Libération",1200.53,null,null,null,409.17,null,null,787.8,8.1,10635.2,98.83,null,null,null],["PFF009","2025-10-17","2510016D","2025-12-22","IPC",null,null,null,null,401.42,null,null,789.81,8.2,null,null,null,null,null],["PFF009","2025-10-17","2510016D","2025-12-22","Libération",1196.18,null,null,null,402.27,null,null,785.5,8.1,10634.2,98.99,null,null,null],["PFF009","2025-10-18","2510017D","2025-12-25","IPC",null,null,null,null,400.44,null,null,792.19,8.1,null,null,null,null,null],["PFF009","2025-10-18","2510017D","2025-12-25","Libération",1200.53,null,null,null,398.77,null,null,785.55,8.1,10638.2,98.69,null,null,null],["PFF009","2025-12-15","2512020D","2026-01-08","IPC",null,null,null,null,401.8,null,null,779.88,8,null,null,null,null,null],["PFF009","2025-12-15","2512020D","2026-01-08","Libération",1192.92,null,null,null,404.37,null,null,784.65,8,10638.3,98.77,null,null,null],["PFF009","2025-12-16","2512021D","2026-01-09","IPC",null,null,null,null,403.83,null,null,787.08,8,null,null,null,null,null],["PFF009","2025-12-16","2512021D","2026-01-09","Libération",1175.52,null,null,null,401.42,null,null,784.4,8,10635.6,98.74,null,null,null],["PFF009","2025-12-17","2512022D","2026-01-15","IPC",null,null,null,null,403.43,null,null,784.98,8,null,null,null,null,null],["PFF009","2025-12-17","2512022D","2026-01-15","Libération",1183.13,null,null,null,403.12,null,null,785.9,8,10634.5,98.86,null,null,null],["PFF009","2025-12-18","2512023D","2026-01-15","IPC",null,null,null,null,403.82,null,null,785.54,8,null,null,null,null,null],["PFF009","2025-12-18","2512023D","2026-01-15","Libération",1182.05,null,null,null,403.12,null,null,762.73,8.1,10635,98.79,null,null,null],["PFF009","2025-12-19","2512024D","2026-01-22","IPC",null,null,null,null,404.36,null,null,785.69,8.1,null,null,null,null,null],["PFF009","2025-12-19","2512024D","2026-01-22","Libération",1186.4,null,null,null,402.77,null,null,785.95,8.1,10635.6,98.71,null,null,null],["PFF009","2025-12-20","2512025D","2026-01-23","IPC",null,null,null,null,404.8,null,null,787.93,8,null,null,null,null,null],["PFF009","2025-12-20","2512025D","2026-01-23","Libération",1178.79,null,null,null,403.87,null,null,787.6,8,10637.1,98.68,null,null,null],["PFF009","2025-12-22","2512026D","2026-01-22","IPC",null,null,null,null,404.23,null,null,788.75,8.2,null,null,null,null,null],["PFF009","2025-12-22","2512026D","2026-01-22","Libération",1190.75,null,null,null,403.62,null,null,785.9,8,10633.8,98.98,null,null,null],["PFF009","2025-12-23","2512027D","29/02/2026","IPC",null,null,null,null,406.41,null,null,787.63,8.1,null,null,null,null,null],["PFF009","2025-12-23","2512027D","29/02/2026","Libération",1176.61,null,null,null,405.92,null,null,795.59,8.1,10637.3,98.97,null,null,null],["PFF009","2025-12-24","2512028D","2026-02-09","IPC",null,null,null,null,405.11,null,null,790.56,8.1,null,null,null,null,null],["PFF009","2025-12-24","2512028D","2026-02-09","Libération",1174.44,null,null,null,403.52,null,null,786.6,8.2,10635.2,98.79,null,null,null],["PFF009","2025-12-25","2512029D","2026-02-09","IPC",null,null,null,null,403.36,null,null,787.97,8,null,null,null,null,null],["PFF009","2025-12-25","2512029D","2026-02-09","Libération",1183.13,null,null,null,401.02,null,null,786.85,8,10636.9,98.84,null,null,null],["PFF009","2025-12-26","2512030D","2026-02-12","IPC",null,null,null,null,402.92,null,null,788.51,8.1,null,null,null,null,null],["PFF009","2025-12-26","2512030D","2026-02-12","Libération",1182.05,null,null,null,403.37,null,null,788.05,7.9,10638.4,98.61,null,null,null],["PFF009","2025-12-27","2512031D","2026-02-11","IPC",null,null,null,null,405.59,null,null,788.93,8.1,null,null,null,null,null],["PFF009","2025-12-27","2512031D","2026-02-11","Libération",1178.79,null,null,null,403.27,null,null,786.85,8.1,10639.8,98.12,null,null,null],["PFF009","2025-12-29","2512032D","2026-02-11","IPC",null,null,null,null,404.4,null,null,787.25,8.1,null,null,null,null,null],["PFF009","2025-12-29","2512032D","2026-02-11","Libération",1182.05,null,null,null,403.72,null,null,788.35,8.2,10638.1,98.81,null,null,null],["PFF009","2025-12-30","2512033D","2026-02-17","IPC",null,null,null,null,404.82,null,null,789.75,8.1,null,null,null,null,null],["PFF009","2025-12-30","2512033D","2026-02-17","Libération",1173.35,null,null,null,403.32,null,null,790.1,8,10634,98.69,null,null,null],["PFF009","2025-12-31","2512034D","2026-02-17","IPC",null,null,null,null,402.8,null,null,790.44,8.1,null,null,null,null,null],["PFF009","2025-12-31","2512034D","2026-02-17","Libération",1167.91,null,null,null,402.17,null,null,788.95,8.1,10639.1,98.7,null,null,null],["PFF009","2026-01-23","2601019D","2026-02-27","IPC",null,null,null,null,402.15,null,null,796.5,8.1,null,null,null,null,null],["PFF009","2026-01-23","2601019D","2026-02-27","Libération",1178.79,null,null,null,399.97,null,null,792.29,8.2,10638.6,98.61,null,null,null],["PFF010","2025-01-06","2501001C","2025-02-10","Libération",null,null,null,null,null,null,null,101.5,8.1,751.8,99.62,null,null,null],["PFF010","2025-01-08","2501002C","2025-02-10","Libération",null,null,null,null,null,null,null,101.1,8.1,751.6,100.87,null,null,null],["PFF010","2025-01-15","2501003C","2025-02-10","Libération",null,null,null,null,null,null,null,100.6,8.1,751.8,101.2,null,null,null],["PFF010","2025-01-17","2501004C","2025-02-11","Libération",null,null,null,null,null,null,null,101.1,8.2,751.8,98.73,null,null,null],["PFF010","2025-01-20","2501005C","2025-02-28","Libération",null,null,null,null,null,null,null,101.4,8.2,751.8,98.69,null,null,null],["PFF010","2025-01-22","2501006C","2025-02-28","Libération",null,null,null,null,null,null,null,100.7,8.2,751.9,99.11,null,null,null],["PFF010","2025-01-24","2501007C","2025-02-28","Libération",null,null,null,null,null,null,null,100.8,8.2,751.8,98.69,null,null,null],["PFF010","2025-01-27","2501008C","2025-02-28","Libération",null,null,null,null,null,null,null,101.08,8.2,751.8,98.6,null,null,null],["PFF010","2025-01-29","2501009C","2025-02-28","Libération",null,null,null,null,null,null,null,101.3,8.2,751.7,100,null,null,null],["PFF010","2025-01-31","2501010C","2025-02-19","Libération",null,null,null,null,null,null,null,101.2,8.2,751.5,100,null,null,null],["PFF010","2025-02-06","2502001C","2025-03-06","Libération",null,null,null,null,null,null,null,100,8.2,751.6,100,null,null,null],["PFF010","2025-02-10","2502002C","2025-02-28","Libération",null,null,null,null,null,null,null,102,8.2,751.6,98.26,null,null,null],["PFF010","2025-02-12","2502003C","2025-04-24","Libération",null,null,null,null,null,null,null,100.8,8.1,751.6,98.69,null,null,null],["PFF010","2025-02-14","2502004C","2025-03-06","Libération",null,null,null,null,null,null,null,100.6,8,751.6,98.39,null,null,null],["PFF010","2025-02-17","2502005C","2025-03-20","Libération",null,null,null,null,null,null,null,99.1,8,751.9,97.3,null,null,null],["PFF010","2025-02-19","2502006C","2025-03-18","Libération",null,null,null,null,null,null,null,99.8,8,751.7,100,null,null,null],["PFF010","2025-02-21","2502007C","2025-03-18","Libération",null,null,null,null,null,null,null,100.5,8,751.9,97.75,null,null,null],["PFF010","2025-03-03","2503001C","2025-04-10","Libération",null,null,null,null,null,null,null,100.6,8,751.9,100,null,null,null],["PFF010","2025-03-05","2503002C","2025-04-10","Libération",null,null,null,null,null,null,null,100.6,8,751.8,100,null,null,null],["PFF010","2025-03-07","2503003C","2025-04-10","Libération",null,null,null,null,null,null,null,100.5,8,751.8,98.21,null,null,null],["PFF010","2025-03-10","2503004C","2025-04-10","Libération",null,null,null,null,null,null,null,100.6,8,751.8,98.01,null,null,null],["PFF010","2025-03-12","2503005C","2025-04-10","Libération",null,null,null,null,null,null,null,100.5,8.1,751.6,98.32,null,null,null],["PFF010","2025-03-14","2503006C","2025-04-10","Libération",null,null,null,null,null,null,null,100.5,8.1,751.9,98.23,null,null,null],["PFF010","2025-03-17","2503007C","2025-05-22","Libération",null,null,null,null,null,null,null,98.9,8.1,751.7,100,null,null,null],["PFF010","2025-03-19","2503008C","2025-04-24","Libération",null,null,null,null,null,null,null,100.6,8.1,751.6,97.91,null,null,null],["PFF010","2025-03-21","2503009C","2025-04-24","Libération",null,null,null,null,null,null,null,100.6,8.1,751.8,97.87,null,null,null],["PFF010","2025-03-24","2503010C","2025-07-11","Libération",null,null,null,null,null,null,null,100.8,8.1,751.5,98,null,null,null],["PFF010","2025-03-26","2503011C","2025-07-11","Libération",null,null,null,null,null,null,null,100.7,8.1,751.6,96.05,null,null,null],["PFF010","2025-03-28","2503012C","2025-05-16","Libération",null,null,null,null,null,null,null,100.6,8.1,751.6,98.19,null,null,null],["PFF010","2025-04-21","2504001C","2025-06-02","Libération",null,null,null,null,null,null,null,100.7,8.1,751.6,98.9,null,null,null],["PFF010","2025-04-22","2504002C","2025-06-03","Libération",null,null,null,null,null,null,null,99.8,8.1,751.5,98.55,null,null,null],["PFF010","2025-04-23","2504003C","2025-06-05","Libération",null,null,null,null,null,null,null,100.3,8.1,751.6,98.12,null,null,null],["PFF010","2025-04-24","2504004C","2025-06-03","Libération",null,null,null,null,null,null,null,100.1,8,751.3,100,null,null,null],["PFF010","2025-04-25","2504005C","2025-06-02","Libération",null,null,null,null,null,null,null,99.9,8,751.5,99.27,null,null,null],["PFF010","2025-04-28","2504006C","2025-06-11","Libération",null,null,null,null,null,null,null,100.4,8,751.6,100,null,null,null],["PFF010","2025-04-30","2504007C","2025-06-03","Libération",null,null,null,null,null,null,null,100.3,8.1,751.9,98.64,null,null,null],["PFF010","2025-05-02","2505001C","2025-06-03","Libération",null,null,null,null,null,null,null,100.4,8,751.8,100.06,null,null,null],["PFF010","2025-05-05","2505002C","2025-06-11","Libération",null,null,null,null,null,null,null,100.4,8,751.9,100,null,null,null],["PFF010","2025-05-07","2505003C","2025-06-17","Libération",null,null,null,null,null,null,null,100.5,8,751.6,100,null,null,null],["PFF010","2025-05-13","2505004C","2025-07-03","Libération",null,null,null,null,null,null,null,100.4,8,752.1,96.27,null,null,null],["PFF010","2025-05-15","2505006C","2025-06-13","Libération",null,null,null,null,null,null,null,100.5,8,751.6,99.48,null,null,null],["PFF010","2025-06-05","2505007C","2025-06-11","Libération",null,null,null,null,null,null,null,100.4,8,751.3,97.94,null,null,null],["PFF010","2025-06-10","2506001C","2025-07-03","Libération",null,null,null,null,null,null,null,100.2,8.1,751.6,99.53,null,null,null],["PFF010","2025-06-12","2506002C","2025-07-18","Libération",null,null,null,null,null,null,null,100.6,8.1,751.7,99.16,null,null,null],["PFF010","2025-06-16","2506003C","2025-07-21","Libération",null,null,null,null,null,null,null,100.6,8.1,751.4,99.3,null,null,null],["PFF010","2025-06-18","2506004C","2025-07-21","Libération",null,null,null,null,null,null,null,100.6,8.1,751.4,100,null,null,null],["PFF010","2025-06-20","2506005C","2025-07-30","Libération",null,null,null,null,null,null,null,101,8.1,751.4,98.98,null,null,null],["PFF010","2025-06-30","2506006C","2025-07-21","Libération",null,null,null,null,null,null,null,101,8.1,751.4,100,null,null,null],["PFF010","2025-07-02","2507001C","2025-10-06","Libération",null,null,null,null,null,null,null,101,8.1,751.6,96.79,null,null,null],["PFF010","2025-07-04","2507002C","2025-08-05","Libération",null,null,null,null,null,null,null,100.5,8.1,751.7,100,null,null,null],["PFF010","2025-07-07","2507003C","2025-08-07","Libération",null,null,null,null,null,null,null,100.5,8.1,751.5,99.24,null,null,null],["PFF010","2025-07-09","2507004C","2025-08-05","Libération",null,null,null,null,null,null,null,100.9,8.1,751.3,99.4,null,null,null],["PFF010","2025-07-11","2507005C","2025-08-07","Libération",null,null,null,null,null,null,null,100.7,8.1,751.3,99.58,null,null,null],["PFF010","2025-07-14","2507006C","2025-08-13","Libération",null,null,null,null,null,null,null,101.2,8.1,751.3,98.81,"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ",null,null],["PFF010","2025-07-16","2507007C","2025-08-07","Libération",null,null,null,null,null,null,null,101,8.1,751.4,99.34,null,null,null],["PFF010","2025-07-18","2507008C","2025-08-13","Libération",null,null,null,null,null,null,null,100.5,8.1,751.1,98.33,null,null,null],["PFF010","2025-07-21","2507009C","2025-08-27","Libération",null,null,null,null,null,null,null,100.5,8.1,751.7,100,null,null,null],["PFF010","2025-07-23","2507010C","2025-09-01","Libération",null,null,null,null,null,null,null,100.9,8.1,751.4,99.04,null,null,null],["PFF010","2025-07-25","2507011C","2025-09-04","Libération",null,null,null,null,null,null,null,101.7,8.1,751.6,97.91,null,null,null],["PFF010","2025-07-28","2507012C","2025-09-08","Libération",null,null,null,null,null,null,null,101.1,8.1,751.7,98.29,null,null,null],["PFF010","2025-08-04","2508001C","2025-09-04","Libération",null,null,null,null,null,null,null,101.1,8,751.4,98.91,null,null,null],["PFF010","2025-08-05","2508002C","2025-09-17","Libération",null,null,null,null,null,null,null,101,8,751.4,99.01,null,null,null],["PFF010","2025-08-06","2508003C","2025-09-15","Libération",null,null,null,null,null,null,null,101.1,8,751.6,100,null,null,null],["PFF010","2025-08-07","2508004C","2025-09-19","Libération",null,null,null,null,null,null,null,101,8,751.7,98.54,null,null,null],["PFF010","2025-09-02","2509001C","2025-09-24","Libération",null,null,null,null,null,null,null,100.3,8,751.9,97.61,null,null,null],["PFF010","2025-09-04","2509002C","2025-09-24","Libération",null,null,null,null,null,null,null,99.9,8,751.6,100,null,null,null],["PFF010","2025-09-11","2509003C","2025-09-29","Libération",null,null,null,null,null,null,null,101.1,8,751.6,98.8,null,null,null],["PFF010","2025-09-13","2509004C","2025-09-30","Libération",null,null,null,null,null,null,null,100.4,8,751.6,98.94,null,null,null],["PFF010","2025-09-18","2509005C","2025-09-30","Libération",null,null,null,null,null,null,null,99.4,8.1,751.1,98.39,null,null,null],["PFF010","2025-09-19","2509006C","2025-10-06","Libération",null,null,null,null,null,null,null,100.6,8.1,751,100,null,null,null],["PFF010","2025-09-20","2509007C","2025-10-06","Libération",null,null,null,null,null,null,null,100.5,8.1,751.2,97.59,null,null,null],["PFF010","2025-09-22","2509008C","2025-10-15","Libération",null,null,null,null,null,null,null,100.8,8.1,751.2,100,null,null,null],["PFF010","2025-09-24","2509009C","2025-10-13","Libération",null,null,null,null,null,null,null,101.9,8.1,751.2,99,null,null,null],["PFF010","2025-09-26","2509010C","2025-10-15","Libération",null,null,null,null,null,null,null,101.2,8.1,751.6,100,null,null,null],["PFF010","2025-09-29","2509011C","2025-10-17","Libération",null,null,null,null,null,null,null,100.9,8.1,751.3,99.15,null,null,null],["PFF010","2025-10-01","2510001C","2025-10-22","Libération",null,null,null,null,null,null,null,100.5,8.1,751.3,98.47,null,null,null],["PFF010","2025-10-03","2510002C","2025-10-22","Libération",null,null,null,null,null,null,null,100.5,8.1,751.2,98.61,null,null,null],["PFF010","2025-10-06","2510003C","2025-10-24","Libération",null,null,null,null,null,null,null,101.7,8.1,751.5,99.47,null,null,null],["PFF010","2025-10-08","2510004C","2025-10-24","Libération",null,null,null,null,null,null,null,101.2,8.1,751.6,99.23,null,null,null],["PFF010","2025-10-10","2510005C","2025-10-27","Libération",null,null,null,null,null,null,null,100.4,8.1,751.4,99.49,null,null,null],["PFF010","2025-10-13","2510006C","2025-10-28","Libération",null,null,null,null,null,null,null,100.4,8.1,751.3,100,null,null,null],["PFF010","2025-10-15","2510007C","2025-10-29","Libération",null,null,null,null,null,null,null,100.5,8.1,751.5,100.7,null,null,null],["PFF010","2025-10-17","2510008C","2025-11-04","Libération",null,null,null,null,null,null,null,100.6,8.1,751.7,99.91,null,null,null],["PFF010","2025-10-20","2510009C","2025-11-04","Libération",null,null,null,null,null,null,null,100.5,8.1,751.5,99.65,null,null,null],["PFF010","2025-10-22","2510010C","2025-11-18","Libération",null,null,null,null,null,null,null,100.5,8.1,751.3,98.63,null,null,null],["PFF010","2025-10-24","2510011C","2025-11-24","Libération",null,null,null,null,null,null,null,100.6,8.1,751.6,98.7,null,null,null],["PFF010","2025-10-27","2510012C","2025-11-21","Libération",null,null,null,null,null,null,null,100.6,8.1,751.5,101.18,null,null,null],["PFF010","2025-10-29","2510013C","2025-11-25","Libération",null,null,null,null,null,null,null,101,8.1,751.5,99.56,null,null,null],["PFF010","2025-10-31","2510014C","2025-11-25","Libération",null,null,null,null,null,null,null,101.8,8.1,751.4,100,null,null,null],["PFF010","2025-11-03","2511001C","2025-11-27","Libération",null,null,null,null,null,null,null,101.3,8.1,751.4,104.72,null,null,null],["PFF010","2025-11-05","2511002C","2025-12-03","Libération",null,null,null,null,null,null,null,100.1,8.1,751.5,102.34,null,null,null],["PFF010","2025-11-10","2511003C","2025-12-03","Libération",null,null,null,null,null,null,null,99.4,8.1,751.7,102.44,null,null,null],["PFF010","2025-11-12","2511004C","2025-12-15","Libération",null,null,null,null,null,null,null,101.3,8.1,751.9,99.27,null,null,null],["PFF010","2025-11-14","2511005C","2025-12-08","Libération",null,null,null,null,null,null,null,101.8,8.1,751.3,98.49,null,null,null],["PFF010","2025-11-18","2511006C","2025-12-08","Libération",null,null,null,null,null,null,null,100.5,8.1,751.4,98.5,null,null,null],["PFF010","2025-11-19","2511007C","2025-12-09","Libération",null,null,null,null,null,null,null,100.6,8.1,751.2,99.16,null,null,null],["PFF010","2025-11-20","2511008C","2025-12-15","Libération",null,null,null,null,null,null,null,100.6,8.1,751.4,98.13,null,null,null],["PFF010","2025-11-21","2511009C","2025-12-18","Libération",null,null,null,null,null,null,null,100.6,8.1,751.5,100,null,null,null],["PFF010","2025-12-01","2512001C","2025-02-22","Libération",null,null,null,null,null,null,null,100.7,8.1,751.1,100,null,null,null],["PFF010","2025-12-03","2512002C","2025-12-25","Libération",null,null,null,null,null,null,null,100.7,8.1,751.4,100,null,null,null],["PFF010","2025-12-05","2512003C","2025-12-30","Libération",null,null,null,null,null,null,null,100.8,8,751.6,100,null,null,null],["PFF010","2025-12-15","2512004C","2025-01-06","Libération",null,null,null,null,null,null,null,100.3,8.1,751.4,100,null,null,null],["PFF010","2025-12-17","2512005C","2026-01-08","Libération",null,null,null,null,null,null,null,100.9,8.1,751.3,100,null,null,null],["PFF010","2025-12-18","2512006C","2026-01-12","Libération",null,null,null,null,null,null,null,100.8,8.1,751.4,100,null,null,null],["PFF010","2025-12-19","2512007C","2026-01-27","Libération",null,null,null,null,null,null,null,100.6,8.1,751.6,100,null,null,null],["PFF010","2025-12-20","2512008C","2025-01-22","Libération",null,null,null,null,null,null,null,100.7,8.1,751.6,100,null,null,null],["PFF010","2025-12-22","2512009C","2026-01-15","Libération",null,null,null,null,null,null,null,100.7,8.1,751.4,100,null,null,null],["PFF010","2025-12-24","2512010C","2026-01-15","Libération",null,null,null,null,null,null,null,100.7,8.1,751.3,100,null,null,null],["PFF010","2025-12-26","2512011C","2026-01-28","Libération",null,null,null,null,null,null,null,100.7,8.1,750.9,100,null,null,null],["PFF010","2025-12-29","2512012C","2026-01-29","Libération",null,null,null,null,null,null,null,100.6,8,751.5,100,null,null,null],["PFF010","2026-01-05","2601001C","2026-02-03","Libération",null,null,null,null,null,null,null,100.7,8,751.5,100,null,null,null],["PFF010","2026-01-06","2601002C","2026-02-10","Libération",null,null,null,null,null,null,null,100,8,751.7,100,null,null,null],["PFF010","2026-01-07","2601003C","2026-02-10","Libération",null,null,null,null,null,null,null,99.9,8,752,100,null,null,null],["PFF010","2026-01-08","2601004C","2026-02-10","Libération",null,null,null,null,null,null,null,100.9,8,752.1,100,null,null,null],["PFF010","2026-01-09","2601005C","2026-02-10","Libération",null,null,null,null,null,null,null,100.6,8,752.1,100,null,null,null],["PFF010","2026-01-10","2601006C","2026-02-04","Libération",null,null,null,null,null,null,null,100.1,8,751.6,100,null,null,null],["PFF010","2026-01-12","2601007C","2026-02-17","Libération",null,null,null,null,null,null,null,100.1,8,751.4,100,null,null,null],["PFF010","2026-01-14","2601008C","2026-02-12","Libération",null,null,null,null,null,null,null,100.3,8,751.4,100,null,null,null],["PFF012","2023-08-31","2308022P","2023-09-22","Libération",null,null,null,null,null,null,null,null,4.8,509.15,99.35,0.893,278,null],["PFF012","2023-09-05","2309004P","2023-09-27","Libération",null,null,null,null,null,null,null,null,4.8,512.05,98.47,0.893,274,null],["PFF012","2023-09-07","2309006P","2023-09-27","Libération",null,null,null,null,null,null,null,null,4.9,512.05,98.71,0.887,276,null],["PFF012","2023-11-10","2311002P","2023-11-30","Libération",null,null,null,null,null,null,null,null,4.821666666666666,512.05,99.88,0.8885000000000001,274.8333333333333,null],["PFF012","2023-11-13","2311004P","2023-12-15","Libération",null,null,null,null,null,null,null,null,4.78,512.05,99.43,0.884,275,null],["PFF012","2023-11-14","2311005P","2023-12-05","Libération",null,null,null,null,null,null,null,null,5.001666666666668,512.05,100.24,0.9065,275.5,null],["PFF012","2023-11-15","2311006P","2023-12-07","Libération",null,null,null,null,null,null,null,null,4.898333333333333,512.05,99.91,0.8833333333333333,274.3333333333333,null],["PFF012","2023-11-16","2311007P","2023-12-08","Libération",null,null,null,null,null,null,null,null,4.846666666666667,512.05,96.81,0.8953333333333334,275.3333333333333,null],["PFF012","2023-11-20","2311010P","2023-12-11","Libération",null,null,null,null,null,null,null,null,4.866666666666666,512.05,95.72,0.9058333333333334,274.6666666666667,null],["PFF012","2023-11-27","2311016P","2023-12-21","Libération",null,null,null,null,null,null,null,null,4.783333333333333,512.05,99.47,0.8803333333333333,275.5,null],["PFF012","2023-11-29","2311018P","2023-12-21","Libération",null,null,null,null,null,null,null,null,4.766666666666667,512.05,99.56,0.8746666666666667,273.6666666666667,null],["PFF012","2023-11-30","2311019P","2023-12-25","Libération",null,null,null,null,null,null,null,null,4.704999999999999,512.05,98.08,0.8731666666666665,273.3333333333333,null],["PFF012","2023-12-01","2312001P","2023-12-25","Libération",null,null,null,null,null,null,null,null,4.7749999999999995,512.05,99.62,0.8791666666666668,273.8333333333333,null],["PFF012","2023-12-04","2312003P","2023-12-26","Libération",null,null,null,null,null,null,null,null,4.926666666666667,512.05,99.43,0.8808333333333332,275.1666666666667,null],["PFF012","2023-12-05","2312004P","2023-12-28","Libération",null,null,null,null,null,null,null,null,4.895,512.05,99.85,0.8791666666666668,276.6666666666667,null],["PFF012","2023-12-06","2312005P","2023-12-29","Libération",null,null,null,null,null,null,null,null,4.868333333333334,512.05,99.78,0.8773333333333334,274.1666666666667,null],["PFF012","2023-12-07","2312006P","2024-01-02","Libération",null,null,null,null,null,null,null,null,4.846666666666667,512.05,99.88,0.888,280.1666666666667,null],["PFF012","2023-12-08","2312007P","2024-01-04","Libération",null,null,null,null,null,null,null,null,4.858333333333333,512.05,99.81,0.8786666666666667,277.5,null],["PFF012","2023-12-11","2312009P","2024-01-09","Libération",null,null,null,null,null,null,null,null,4.891666666666667,512.05,99.19,0.879,273.8333333333333,null],["PFF012","2023-12-12","2312010P","2024-01-12","Libération",null,null,null,null,null,null,null,null,4.8533333333333335,512.05,99.4,0.8795000000000001,274.8333333333333,null],["PFF012","2023-12-13","2312011P","2024-01-12","Libération",null,null,null,null,null,null,null,null,4.87,512.05,98.76,0.8781666666666667,273,null],["PFF012","2023-12-14","2312012P","2024-01-12","Libération",null,null,null,null,null,null,null,null,4.869999999999999,512.05,99.83,0.8801666666666667,275.1666666666667,null],["PFF012","2023-12-15","2312013P","2024-01-19","Libération",null,null,null,null,null,null,null,null,4.831666666666666,512.05,100.2,0.8786666666666666,275.3333333333333,null],["PFF012","2023-12-18","2312014P","2024-01-18","Libération",null,null,null,null,null,null,null,null,4.876666666666666,512.05,100.02,0.8763333333333333,274.5,null],["PFF012","2023-12-19","2312015P","2024-01-18","Libération",null,null,null,null,null,null,null,null,4.943333333333333,512.05,100.22,0.8760000000000002,277.6666666666667,null],["PFF012","2023-12-20","2312016P","2024-01-24","Libération",null,null,null,null,null,null,null,null,4.8,512.05,100.26,0.8741666666666666,274.8333333333333,null],["PFF012","2023-12-21","2312017P","2024-01-24","Libération",null,null,null,null,null,null,null,null,4.833333333333333,512.05,100.18,0.8738333333333332,273.5,null],["PFF012","2023-12-22","2312018P","2024-01-24","Libération",null,null,null,null,null,null,null,null,4.8116666666666665,512.05,98.83,0.8738333333333334,275.3333333333333,null],["PFF012","2024-01-15","2401004P","2024-02-12","Libération",null,null,null,null,null,null,null,null,4.716666666666666,512.05,99.84,0.8756666666666666,277.3333333333333,null],["PFF012","2024-01-16","2401005P","2024-02-13","Libération",null,null,null,null,null,null,null,null,4.716666666666666,512.05,99.85,0.8786666666666666,279.8333333333333,null],["PFF012","2024-01-17","2401006P","2024-02-15","Libération",null,null,null,null,null,null,null,null,4.7,512.05,99.8,0.8768333333333332,276.8333333333333,null],["PFF012","2024-01-19","2401008P","2024-02-19","Libération",null,null,null,null,null,null,null,null,4.73,512.05,99.9,0.878,278,null],["PFF012","2024-01-22","2401010P","2024-02-29","Libération",null,null,null,null,null,null,null,null,4.816666666666667,512.05,100.32,0.8728333333333333,279.5,null],["PFF012","2024-01-23","2401011P","2024-02-27","Libération",null,null,null,null,null,null,null,null,4.7,512.05,100.6,0.8744999999999999,278.1666666666667,null],["PFF012","2024-01-24","2401012P","2024-02-22","Libération",null,null,null,null,null,null,null,null,4.716666666666667,512.05,100,0.8731666666666666,279.5,null],["PFF012","2024-02-12","2402007P","2024-03-08","Libération",null,null,null,null,null,null,null,null,4.716666666666666,512.05,99.92,0.8761666666666666,278.1666666666667,null],["PFF012","2024-02-13","2402008P","2024-03-13","Libération",null,null,null,null,null,null,null,null,4.708333333333334,520.6500000000001,98.28,0.8771666666666667,278.0833333333333,null],["PFF012","2024-02-28","2402018P","2024-03-29","Libération",null,null,null,null,null,null,null,null,4.766666666666667,520.6500000000001,98.55,0.8613333333333334,274.6666666666667,null],["PFF012","2024-02-29","2402019P","2024-03-29","Libération",null,null,null,null,null,null,null,null,4.75,520.6500000000001,98.28,0.8775,275.3333333333333,null],["PFF012","2024-03-01","2403001P","2024-04-01","Libération",null,null,null,null,null,null,null,null,4.783333333333333,520.6500000000001,98.55,0.8776666666666667,274.8333333333333,null],["PFF012","2024-04-15","2404010P","2024-05-28","Libération",null,null,null,null,null,null,null,null,4.6499999999999995,520.6500000000001,97.17,0.8925,277.3333333333333,null],["PFF012","2024-04-16","2404011P","2024-06-05","Libération",null,null,null,null,null,null,null,null,4.683333333333333,520.6500000000001,97.9,0.8856666666666667,273.5,null],["PFF012","2024-04-17","2404012P","2024-05-29","Libération",null,null,null,null,null,null,null,null,4.7,520.6500000000001,97.72,0.8758333333333334,274,null],["PFF012","2024-04-18","2404013P","2024-06-13","Libération",null,null,null,null,null,null,null,null,4.7,520.6500000000001,97.65,0.8796666666666667,277.3333333333333,null],["PFF012","2024-04-29","2404020P","2024-08-29","Libération",null,null,null,null,null,null,null,null,4.7,520.6500000000001,97.94,0.8765000000000001,274.5,null],["PFF012","2024-04-30","2404021P","2024-06-12","Libération",null,null,null,null,null,null,null,null,4.7,520.6500000000001,97.56,0.8755000000000001,274.1666666666667,null],["PFF012","2024-05-02","2405001P","2024-07-25","Libération",null,null,null,null,null,null,null,null,4.666666666666667,520.6500000000001,97.46,0.8945000000000002,273.8333333333333,null],["PFF012","2024-05-03","2405002P","2024-07-05","Libération",null,null,null,null,null,null,null,null,4.6883333333333335,520.6500000000001,97.76,0.8811666666666667,275.6666666666667,null],["PFF012","2024-05-06","2405003P","2024-06-28","Libération",null,null,null,null,null,null,null,null,4.716666666666666,520.6500000000001,97.84,0.8811666666666667,274.1666666666667,null],["PFF012","2024-05-07","2405004P","2024-07-22","Libération",null,null,null,null,null,null,null,null,4.7,520.6500000000001,97.75,0.8778333333333332,277.5,null],["PFF012","2024-05-08","2405005P","2024-07-12","Libération",null,null,null,null,null,null,null,null,4.716666666666666,520.6500000000001,97.83,0.8770000000000001,277.1666666666667,null],["PFF012","2024-05-09","2405006P","2024-08-28","Libération",null,null,null,null,null,null,null,null,4.716666666666667,520.6500000000001,97.98,0.8776666666666668,276.8333333333333,null],["PFF012","2024-05-10","2405007P","2024-07-22","Libération",null,null,null,null,null,null,null,null,4.733333333333333,520.6500000000001,97.74,0.8781666666666667,278.5,null],["PFF012","2024-06-10","2406006P","2024-09-10","Libération",null,null,null,null,null,null,null,null,4.673333333333333,520.6500000000001,97.68,0.8701666666666666,278.8333333333333,null],["PFF012","2024-06-11","2406007P","2024-08-29","Libération",null,null,null,null,null,null,null,null,4.566666666666666,520.6500000000001,97.59,0.8663333333333334,279.5,null],["PFF012","2024-06-12","2406008P","2024-08-05","Libération",null,null,null,null,null,null,null,null,4.583333333333333,520.6500000000001,97.68,0.8729999999999999,276.5,null],["PFF012","2024-06-13","2406009P","2024-08-07","Libération",null,null,null,null,null,null,null,null,4.616666666666667,520.6500000000001,97.28,0.8686666666666668,278.6666666666667,null],["PFF012","2024-06-14","2406010P","2024-08-09","Libération",null,null,null,null,null,null,null,null,4.566666666666666,520.6500000000001,97.58,0.8909999999999999,273.3333333333333,null],["PFF012","2024-06-20","2406011P","2024-08-09","Libération",null,null,null,null,null,null,null,null,4.623333333333334,520.6500000000001,97.8,0.8871666666666668,278,null],["PFF012","2024-06-21","2406012P","2024-08-09","Libération",null,null,null,null,null,null,null,null,4.7,520.6500000000001,97.69,0.886,274,null],["PFF012","2024-07-01","2407001P","2024-08-09","Libération",null,null,null,null,null,null,null,null,4.633333333333334,520.6500000000001,97.33,0.8895,272.3333333333333,null],["PFF012","2024-07-02","2407002P","2024-08-09","Libération",null,null,null,null,null,null,null,null,4.633333333333334,520.6500000000001,97.46,0.8883333333333333,277.3333333333333,null],["PFF012","2024-07-03","2407003P","2024-09-03","Libération",null,null,null,null,null,null,null,null,4.571666666666666,520.6500000000001,97.55,0.8888333333333334,273,null],["PFF012","2024-07-04","2407004P","2024-09-03","Libération",null,null,null,null,null,null,null,null,4.633333333333333,520.6500000000001,97.41,0.8886666666666666,277,null],["PFF012","2024-07-05","2407005P","2024-09-03","Libération",null,null,null,null,null,null,null,null,4.566666666666666,520.6500000000001,97.43,0.8831666666666668,274,null],["PFF012","2024-07-15","2407011P","2024-10-01","Libération",null,null,null,null,null,null,null,null,4.633333333333333,520.6500000000001,97.41,0.8849999999999999,273.1666666666667,null],["PFF012","2024-07-16","2407012P","2024-09-17","Libération",null,null,null,null,null,null,null,null,4.603333333333333,520.6500000000001,97.09,0.886,273.8333333333333,null],["PFF012","2024-07-17","2407013P","2024-09-17","Libération",null,null,null,null,null,null,null,null,4.633333333333333,520.6500000000001,97.67,0.8818333333333334,275,null],["PFF012","2024-07-18","2407014P","2024-09-10","Libération",null,null,null,null,null,null,null,null,4.566666666666666,520.6500000000001,98.56,0.8806666666666666,276.8333333333333,null],["PFF012","2024-07-19","2407015P","2024-10-03","Libération",null,null,null,null,null,null,null,null,4.633333333333334,520.6500000000001,97.54,0.8771666666666668,276.1666666666667,null],["PFF012","2024-08-05","2408004P","2024-10-10","Libération",null,null,null,null,null,null,null,null,4.838333333333334,520.6500000000001,97.52,0.8875000000000001,274.6666666666667,null],["PFF012","2024-08-06","2408005P","2024-10-03","Libération",null,null,null,null,null,null,null,null,4.7700000000000005,520.6500000000001,97.35,0.8868333333333335,282.3333333333333,null],["PFF012","2024-08-08","2408007P","2024-10-15","Libération",null,null,null,null,null,null,null,null,4.8116666666666665,520.6500000000001,97.56,0.8855000000000001,281.6666666666667,null],["PFF012","2024-09-03","2409001P","2024-10-28","Libération",null,null,null,null,null,null,null,null,4.8066666666666675,520.6500000000001,97.43,0.8791666666666668,274.6666666666667,null],["PFF012","2024-09-04","2409002P","2024-10-18","Libération",null,null,null,null,null,null,null,null,4.746666666666667,520.6500000000001,97.36,0.8769999999999999,276,null],["PFF012","2024-09-05","2409003P","2024-11-11","Libération",null,null,null,null,null,null,null,null,4.7316666666666665,520.6500000000001,97.39,0.8805000000000001,275.8333333333333,null],["PFF012","2024-09-06","2409004P","2024-11-04","Libération",null,null,null,null,null,null,null,null,4.75,520.6500000000001,97.78,0.8813333333333334,273.8333333333333,null],["PFF012","2024-09-17","2409011P","2024-12-02","Libération",null,null,null,null,null,null,null,null,4.898333333333333,520.6500000000001,97.19,0.8816666666666667,277.3333333333333,null],["PFF012","2024-09-18","2409012P","2024-10-28","Libération",null,null,null,null,null,null,null,null,4.828333333333333,520.6500000000001,97.47,0.8898333333333334,276.8333333333333,null],["PFF012","2024-09-19","2409013P","2024-11-01","Libération",null,null,null,null,null,null,null,null,4.675,520.6500000000001,97.5,0.8841666666666668,277,null],["PFF012","2024-09-20","2409014P","2024-11-01","Libération",null,null,null,null,null,null,null,null,4.713333333333334,520.6500000000001,97.58,0.8818333333333332,276.1666666666667,null],["PFF012","2024-09-23","2409016P","2024-11-11","Libération",null,null,null,null,null,null,null,null,4.866666666666666,520.6500000000001,97.58,0.8825,276.3333333333333,null],["PFF012","2024-09-24","2409017P","2024-11-15","Libération",null,null,null,null,null,null,null,null,4.826666666666667,520.6500000000001,97.52,0.8805,276,null],["PFF012","2024-09-25","2409018P","2024-11-21","Libération",null,null,null,null,null,null,null,null,4.8,520.6500000000001,97.42,0.8833333333333334,276,null],["PFF012","2024-09-26","2409019P","2024-11-13","Libération",null,null,null,null,null,null,null,null,4.8950000000000005,520.6500000000001,97.53,0.8796666666666666,275.6666666666667,null],["PFF012","2024-09-27","2409020P","2024-12-04","Libération",null,null,null,null,null,null,null,null,4.756666666666667,520.6500000000001,97.59,0.8786666666666667,277.6666666666667,null],["PFF012","2024-10-24","2410018P","2024-12-04","Libération",null,null,null,null,null,null,null,null,4.836666666666667,520.6500000000001,97.1,0.8781666666666665,274.6666666666667,null],["PFF012","2024-10-25","2410019P","2024-12-03","Libération",null,null,null,null,null,null,null,null,4.8966666666666665,520.6500000000001,96.52,0.8801666666666667,273.5,null],["PFF012","2024-10-28","2410020P","2024-12-04","Libération",null,null,null,null,null,null,null,null,4.873333333333334,520.6500000000001,97.51,0.8835000000000001,277,null],["PFF012","2024-10-29","2410021P","2024-12-16","Libération",null,null,null,null,null,null,null,null,4.911666666666666,520.6500000000001,97.22,0.8808333333333334,276.6666666666667,null],["PFF012","2024-11-04","2411002P","2024-12-16","Libération",null,null,null,null,null,null,null,null,4.836666666666667,520.6500000000001,97.31,0.8795000000000001,278.5,null],["PFF012","2024-11-05","2411003P","2024-12-16","Libération",null,null,null,null,null,null,null,null,4.903333333333333,520.6500000000001,97.37,0.8783333333333333,278.5,null],["PFF012","2024-11-07","2411004P","2024-12-16","Libération",null,null,null,null,null,null,null,null,4.901666666666666,520.6500000000001,97.3,0.8866666666666667,284.5,null],["PFF012","2024-11-08","2411005P","2025-01-10","Libération",null,null,null,null,null,null,null,null,5.005,520.6500000000001,97.4,0.888,281.6666666666667,null],["PFF012","2024-11-11","2411006P","2024-12-25","Libération",null,null,null,null,null,null,null,null,4.96,520.6500000000001,97.28,0.8826666666666667,282.5,null],["PFF012","2024-11-12","2411007P","2024-12-30","Libération",null,null,null,null,null,null,null,null,4.816666666666667,520.6500000000001,97.41,0.8809999999999999,278.5,null],["PFF012","2024-11-13","2411008P","2025-01-09","Libération",null,null,null,null,null,null,null,null,4.765,520.6500000000001,97.37,0.8843333333333333,279.8333333333333,null],["PFF012","2024-11-14","2411009P","2025-01-09","Libération",null,null,null,null,null,null,null,null,4.8133333333333335,520.6500000000001,97.51,0.8845000000000001,277.5,null],["PFF012","2024-11-25","2411014P","2025-01-30","Libération",null,null,null,null,null,null,null,null,4.801666666666667,520.6500000000001,97.63,0.8833333333333333,275.8333333333333,null],["PFF012","2024-11-26","2411015P","2025-01-09","Libération",null,null,null,null,null,null,null,null,4.696666666666666,520.6500000000001,97.6,0.8848333333333334,279.6666666666667,null],["PFF012","2024-11-27","2411016P","2025-01-09","Libération",null,null,null,null,null,null,null,null,4.685,520.6500000000001,97.51,0.8863333333333333,276.6666666666667,null],["PFF012","2024-11-28","2411017P","2025-01-09","Libération",null,null,null,null,null,null,null,null,4.723333333333334,520.6500000000001,97.56,0.8919999999999999,278.1666666666667,null],["PFF012","2024-11-29","2411018P","2025-01-16","Libération",null,null,null,null,null,null,null,null,4.738333333333333,520.6500000000001,97.61,0.8873333333333334,281.3333333333333,null],["PFF012","2025-01-15","2501007P","2025-02-11","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.88,null,null],["PFF012","2025-01-15","2501007P","2025-02-11","Libération",null,null,null,null,null,null,null,null,5,null,97.42,0.883,280,null],["PFF012","2025-01-16","2501008P","2025-02-18","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.877,null,null],["PFF012","2025-01-16","2501008P","2025-02-18","Libération",null,null,null,null,null,null,null,null,5,null,97.38,0.879,279,null],["PFF012","2025-01-17","2501009P","2025-02-18","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.883,null,null],["PFF012","2025-01-17","2501009P","2025-02-18","Libération",null,null,null,null,null,null,null,null,4.9,null,97.39,0.89,281,null],["PFF012","2025-01-18","2501010P","2025-02-17","IPC",null,null,null,null,null,null,null,null,6.9,null,null,0.874,null,null],["PFF012","2025-01-18","2501010P","2025-02-17","Libération",null,null,null,null,null,null,null,null,4.9,null,97.28,0.9,275,null],["PFF012","2025-01-27","2501017P","2025-03-11","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.886,null,null],["PFF012","2025-01-27","2501017P","2025-03-11","Libération",null,null,null,null,null,null,null,null,5,null,97.31,0.878,276,null],["PFF012","2025-01-28","2501018P","2025-02-28","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.883,null,null],["PFF012","2025-01-28","2501018P","2025-02-28","Libération",null,null,null,null,null,null,null,null,4.9,null,97.56,0.883,278,null],["PFF012","2025-01-29","2501019P","2025-02-28","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.875,null,null],["PFF012","2025-01-29","2501019P","2025-02-28","Libération",null,null,null,null,null,null,null,null,4.9,null,97.65,0.883,277,null],["PFF012","2025-01-30","2501020P","2025-03-05","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.882,null,null],["PFF012","2025-01-30","2501020P","2025-03-05","Libération",null,null,null,null,null,null,null,null,4.9,null,97.47,0.881,278,null],["PFF012","2025-01-31","2501021P","2025-03-05","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.88,null,null],["PFF012","2025-01-31","2501021P","2025-03-05","Libération",null,null,null,null,null,null,null,null,4.8,null,96.69,0.882,280,null],["PFF012","2025-02-10","2502008P","2025-04-28","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.879,null,null],["PFF012","2025-02-10","2502008P","2025-04-28","Libération",null,null,null,null,null,null,null,null,4.9,null,97.56,0.883,282,null],["PFF012","2025-02-11","2502009P","2025-03-18","IPC",null,null,null,null,null,null,null,null,6,null,null,0.881,null,null],["PFF012","2025-02-11","2502009P","2025-03-18","Libération",null,null,null,null,null,null,null,null,4.8,null,97.83,0.882,282,null],["PFF012","2025-02-12","2502010P","2025-03-18","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.882,null,null],["PFF012","2025-02-12","2502010P","2025-03-18","Libération",null,null,null,null,null,null,null,null,4.8,null,97.8,0.878,280,null],["PFF012","2025-02-13","2502011P","2025-03-17","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.881,null,null],["PFF012","2025-02-13","2502011P","2025-03-17","Libération",null,null,null,null,null,null,null,null,4.8,null,97.78,0.884,281,null],["PFF012","2025-02-14","2502012P","2025-04-17","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.887,null,null],["PFF012","2025-02-14","2502012P","2025-04-17","Libération",null,null,null,null,null,null,null,null,4.8,null,97.85,0.891,282,null],["PFF012","2025-02-15","2502013P","2025-04-04","IPC",null,null,null,null,null,null,null,null,6,null,null,0.879,null,null],["PFF012","2025-02-15","2502013P","2025-04-04","Libération",null,null,null,null,null,null,null,null,4.8,null,97.33,0.886,279,null],["PFF012","2025-02-24","2502023P","2025-04-15","IPC",null,null,null,null,null,null,null,null,6,null,null,0.884,null,null],["PFF012","2025-02-24","2502023P","2025-04-15","Libération",null,null,null,null,null,null,null,null,4.9,null,96.91,0.882,278,null],["PFF012","2025-02-25","2502024P","2025-04-17","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.88,null,null],["PFF012","2025-02-25","2502024P","2025-04-17","Libération",null,null,null,null,null,null,null,null,4.8,null,97.72,0.879,277,null],["PFF012","2025-02-26","2502025P","2025-04-15","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.878,null,null],["PFF012","2025-02-26","2502025P","2025-04-15","Libération",null,null,null,null,null,null,null,null,4.8,null,97.27,0.869,276,null],["PFF012","2025-02-27","2502026P","2025-04-10","Libération",null,null,null,null,null,null,null,null,4.8,null,97.7,0.877,277,null],["PFF012","2025-02-27","2502026P","2025-04-10","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.881,null,null],["PFF012","2025-02-28","2502027P","2025-04-21","Libération",null,null,null,null,null,null,null,null,4.8,null,98.02,0.871,275,null],["PFF012","2025-02-28","2502027P","2025-04-21","IPC",null,null,null,null,null,null,null,null,6,null,null,0.883,null,null],["PFF012","2025-03-10","2503006P","2025-04-24","Libération",null,null,null,null,null,null,null,null,4.7,null,97.5,0.873,276,null],["PFF012","2025-03-10","2503006P","2025-04-24","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.88,null,null],["PFF012","2025-03-11","2503007P","2025-04-17","Libération",null,null,null,null,null,null,null,null,4.7,null,97.9,0.875,275,null],["PFF012","2025-03-11","2503007P","2025-04-17","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.885,null,null],["PFF012","2025-03-12","2503008P","2025-04-29","Libération",null,null,null,null,null,null,null,null,4.7,null,97.51,0.876,276,null],["PFF012","2025-03-12","2503008P","2025-04-29","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.888,null,null],["PFF012","2025-03-27","2503019P","2025-04-28","Libération",null,null,null,null,null,null,null,null,4.8,null,97.58,0.871,279,null],["PFF012","2025-03-27","2503019P","2025-04-28","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.882,null,null],["PFF012","2025-03-28","2503020P","2025-05-07","Libération",null,null,null,null,null,null,null,null,4.8,null,97.76,0.877,280,null],["PFF012","2025-03-28","2503020P","2025-05-07","IPC",null,null,null,null,null,null,null,null,6,null,null,0.882,null,null],["PFF012","2025-04-07","2504004P","2025-06-04","Libération",null,null,null,null,null,null,null,null,4.8,null,97.34,0.876,280,null],["PFF012","2025-04-07","2504004P","2025-06-04","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.887,null,null],["PFF012","2025-04-08","2504005P","2025-06-04","Libération",null,null,null,null,null,null,null,null,4.7,null,97.56,0.875,279,null],["PFF012","2025-04-08","2504005P","2025-06-04","IPC",null,null,null,null,null,null,null,null,6,null,null,0.878,null,null],["PFF012","2025-04-09","2504006P","2025-05-19","Libération",null,null,null,null,null,null,null,null,4.8,null,97.4,0.874,280,null],["PFF012","2025-04-09","2504006P","2025-05-19","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.88,null,null],["PFF012","2025-04-10","2504007P","2025-05-19","Libération",null,null,null,null,null,null,null,null,4.8,null,97.75,0.874,279,null],["PFF012","2025-04-10","2504007P","2025-05-19","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.877,null,null],["PFF012","2025-04-11","2504008P","2025-05-22","Libération",null,null,null,null,null,null,null,null,4.7,null,97.71,0.874,280,null],["PFF012","2025-04-11","2504008P","2025-05-22","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.884,null,null],["PFF012","2025-04-12","2504009P","2025-05-22","Libération",null,null,null,null,null,null,null,null,4.7,null,97.17,0.873,280,null],["PFF012","2025-04-12","2504009P","2025-05-22","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.877,null,null],["PFF012","2025-04-14","2504010P","2025-06-02","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.876,null,null],["PFF012","2025-04-14","2504010P","2025-06-02","Libération",null,null,null,null,null,null,null,null,4.8,null,97.53,0.875,279,null],["PFF012","2025-04-15","2504011P","2025-06-02","Libération",null,null,null,null,null,null,null,null,4.8,null,97.29,0.876,279,null],["PFF012","2025-04-15","2504011P","2025-06-02","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.875,null,null],["PFF012","2025-04-16","2504012P","2025-06-02","IPC",null,null,null,null,null,null,null,null,6.7,null,null,0.878,null,null],["PFF012","2025-04-16","2504012P","2025-06-02","Libération",null,null,null,null,null,null,null,null,4.7,null,97.44,0.88,280,null],["PFF012","2025-04-17","2504013P","2025-06-04","Libération",null,null,null,null,null,null,null,null,4.7,null,97.44,0.878,277,null],["PFF012","2025-04-17","2504013P","2025-06-04","IPC",null,null,null,null,null,null,null,null,6.8,null,null,0.876,null,null],["PFF012","2025-04-18","2504014P","2025-06-02","Libération",null,null,null,null,null,null,null,null,4.7,null,97.37,0.877,276,null],["PFF012","2025-04-18","2504014P","2025-06-02","IPC",null,null,null,null,null,null,null,null,6.7,null,null,0.878,null,null],["PFF012","2025-04-28","2504021P","2025-06-04","Libération",null,null,null,null,null,null,null,null,4.8,null,97.56,0.877,276,null],["PFF012","2025-04-28","2504021P","2025-06-04","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.883,null,null],["PFF012","2025-04-29","2504022P","2025-06-13","Libération",null,null,null,null,null,null,null,null,4.8,null,97.56,0.878,276,null],["PFF012","2025-04-29","2504022P","2025-06-13","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.883,null,null],["PFF012","2025-04-30","2504023P","2025-06-04","Libération",null,null,null,null,null,null,null,null,4.8,null,97.53,0.874,277,null],["PFF012","2025-04-30","2504023P","2025-06-04","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.879,null,null],["PFF012","2025-05-05","2505003P","2025-06-24","Libération",null,null,null,null,null,null,null,null,4.8,null,97.56,0.873,275,null],["PFF012","2025-05-05","2505003P","2025-06-24","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.876,null,null],["PFF012","2025-05-06","2505004P","2025-06-17","Libération",null,null,null,null,null,null,null,null,4.9,null,97.61,0.876,275,null],["PFF012","2025-05-06","2505004P","2025-06-17","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.877,null,null],["PFF012","2025-05-07","2505005P","2025-06-17","Libération",null,null,null,null,null,null,null,null,4.9,null,97.42,0.879,275,null],["PFF012","2025-05-07","2505005P","2025-06-17","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.877,null,null],["PFF012","2025-05-08","2505006P","2025-06-19","Libération",null,null,null,null,null,null,null,null,4.9,null,97.69,0.878,276,null],["PFF012","2025-05-08","2505006P","2025-06-19","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.874,null,null],["PFF012","2025-05-09","2505007P","2025-06-20","Libération",null,null,null,null,null,null,null,null,5,null,97.75,0.872,276,null],["PFF012","2025-05-09","2505007P","2025-06-20","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.874,null,null],["PFF012","2025-05-12","2505008P","2025-07-01","Libération",null," ",null,null,null,null,null,null,4.9,null,97.07,0.875,276,null],["PFF012","2025-05-12","2505008P","2025-07-01","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.876,null,null],["PFF012","2025-05-13","2505009P","2025-08-05","Libération",null,null,null,null,null,null,null,null,4.9,null,97.21,0.872,277,null],["PFF012","2025-05-13","2505009P","2025-08-05","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.877,null,null],["PFF012","2025-05-14","2505010P","2025-06-19","Libération",null,null,null,null,null,null,null,null,4.9,null,97.71,0.873,276,null],["PFF012","2025-05-14","2505010P","2025-06-19","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.875,null,null],["PFF012","2025-05-15","2505011P","2025-07-31","Libération",null,null,null,null,null,null,null,null,4.9,null,97.46,0.874,276,null],["PFF012","2025-05-15","2505011P","2025-07-31","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.877,null,null],["PFF012","2025-05-16","2505012P","2025-09-04","Libération",null,null,null,null,null,null,null,null,4.8,null,97.42,0.874,276,null],["PFF012","2025-05-16","2505012P","2025-09-04","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.873,null,null],["PFF012","2025-05-19","2505013P","2025-07-30","Libération",null,null,null,null,null,null,null,null,4.9,null,97.63,0.874,275,null],["PFF012","2025-05-19","2505013P","2025-07-30","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.874,null,null],["PFF012","2025-05-20","2505014P","2025-08-08","Libération",null,null,null,null,null,null,null,null,4.9,null,97.57,0.874,276,null],["PFF012","2025-05-20","2505014P","2025-08-08","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.873,null,null],["PFF012","2025-05-21","2505015P","2025-07-03","Libération",null,null,null,null,null,null,null,null,4.8,null,97.6,0.874,277,null],["PFF012","2025-05-21","2505015P","2025-07-03","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.872,null,null],["PFF012","2025-05-22","2505016P","2025-07-01","Libération",null,null,null,null,null,null,null,null,4.8,null,97.64,0.874,276,null],["PFF012","2025-05-22","2505016P","2025-07-01","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.874,null,null],["PFF012","2025-05-23","2505017P","2025-07-31","Libération",null,null,null,null,null,null,null,null,4.9,null,97.53,0.873,287,null],["PFF012","2025-05-23","2505017P","2025-07-31","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.887,null,null],["PFF012","2025-05-24","2505018P","2025-07-11","Libération",null,null,null,null,null,null,null,null,4.7,null,97.38,0.874,290,null],["PFF012","2025-05-24","2505018P","2025-07-11","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.879,null,null],["PFF012","2025-06-02","2506001P","2025-08-08","Libération",null,null,null,null,null,null,null,null,4.8,null,97.59,0.874,281,null],["PFF012","2025-06-02","2506001P","2025-08-08","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.877,null,null],["PFF012","2025-06-03","2506002P","2025-08-05","Libération",null,null,null,null,null,null,null,null,4.8,null,97.81,0.871,277,null],["PFF012","2025-06-03","2506002P","2025-08-05","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.877,null,null],["PFF012","2025-06-04","2506003P","2025-08-12","Libération",null,null,null,null,null,null,null,null,4.8,null,97.81,0.873,276,null],["PFF012","2025-06-04","2506003P","2025-08-12","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.872,null,null],["PFF012","2025-06-05","2506004P","2025-08-05","Libération",null,null,null,null,null,null,null,null,4.8,null,97.8,0.87,278,null],["PFF012","2025-06-05","2506004P","2025-08-05","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.872,null,null],["PFF012","2025-06-23","2506015P","2025-08-13","Libération",null,null,null,null,null,null,null,null,4.9,null,97.63,0.872,277,null],["PFF012","2025-06-23","2506015P","2025-08-13","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.878,null,null],["PFF012","2025-06-24","2506016P","2025-09-04","Libération",null,null,null,null,null,null,null,null,4.8,null,97.77,0.87,276,null],["PFF012","2025-06-24","2506016P","2025-09-04","IPC",null,null,null,null,null,null,null,null,6.7,null,null,0.874,null,null],["PFF012","2025-06-25","2506017P","2025-08-07","Libération",null,null,null,null,null,null,null,null,4.9,null,98.01,0.869,276,null],["PFF012","2025-06-25","2506017P","2025-08-07","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.885,null,null],["PFF012","2025-06-26","2506018P","2025-08-07","Libération",null,null,null,null,null,null,null,null,4.8,null,97.75,0.873,277,null],["PFF012","2025-06-26","2506018P","2025-08-07","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.872,null,null],["PFF012","2025-06-30","2506019P","2025-09-11","Libération",null,null,null,null,null,null,null,null,4.8,null,97.76,0.874,279,null],["PFF012","2025-06-30","2506019P","2025-09-11","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.873,null,null],["PFF012","2025-07-01","2507001P","2025-08-07","Libération",null,null,null,null,null,null,null,null,4.9,null,97.64,0.874,278,null],["PFF012","2025-07-01","2507001P","2025-08-07","IPC",null,null,null,null,null,null,null,null,6.8,null,null,0.877,null,null],["PFF012","2025-07-02","2507002P","2025-09-11","Libération",null,null,null,null,null,null,null,null,4.8,null,97.73,0.876,276,null],["PFF012","2025-07-02","2507002P","2025-09-11","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.869,null,null],["PFF012","2025-07-03","2507003P","2025-09-11","Libération",null,null,null,null,null,null,null,null,4.8,null,97.68,0.873,276,null],["PFF012","2025-07-03","2507003P","2025-09-11","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.876,null,null],["PFF012","2025-07-04","2507004P","2025-10-03","Libération",null,null,null,null,null,null,null,null,4.9,null,97.76,0.874,275,null],["PFF012","2025-07-04","2507004P","2025-10-03","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.865,null,null],["PFF012","2025-07-07","2507005P","2025-10-03","Libération",null,null,null,null,null,null,null,null,5,null,97.71,0.876,276,null],["PFF012","2025-07-07","2507005P","2025-10-03","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.882,null,null],["PFF012","2025-07-08","2507006P","2025-10-03","Libération",null,null,null,null,null,null,null,null,4.7,null,97.49,0.875,278,null],["PFF012","2025-07-08","2507006P","2025-10-03","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.873,null,null],["PFF012","2025-07-09","2507007P","2025-11-13","Libération",null,null,null,null,null,null,null,null,4.7,null,97.49,0.874,276,null],["PFF012","2025-07-09","2507007P","2025-11-13","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.877,null,null],["PFF012","2025-07-10","2507008P","2025-10-03","Libération",null,null,null,null,null,null,null,null,4.7,null,97.58,0.877,277,null],["PFF012","2025-07-10","2507008P","2025-10-03","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.872,null,null],["PFF012","2025-09-22","2509019P","2025-10-29","Libération",null,null,null,null,null,null,null,null,4.7,null,null,0.876,280,null],["PFF012","2025-09-22","2509019P","2025-10-29","IPC",null,null,null,null,null,null,null,null,5.4,null,null,0.875,null,null],["PFF012","2025-09-23","2509020P","2025-10-29","Libération",null,null,null,null,null,null,null,null,4.7,null,97.49,0.88,283,null],["PFF012","2025-09-23","2509020P","2025-10-29","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.887,null,null],["PFF012","2025-09-24","2509021P","2025-11-05","Libération",null,null,null,null,null,null,null,null,4.7,null,97.67,0.879,282,null],["PFF012","2025-09-24","2509021P","2025-11-05","IPC",null,null,null,null,null,null,null,null,5.44,null,null,0.885,null,null],["PFF012","2025-09-25","2509022P","2025-11-14","Libération",null,null,null,null,null,null,null,null,4.8,null,97.7,0.876,280,null],["PFF012","2025-09-25","2509022P","2025-11-14","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.885,null,null],["PFF012","2025-09-29","2509025P","2025-11-18","Libération",null,null,null,null,null,null,null,null,4.7,null,97.44,0.881,282,null],["PFF012","2025-09-29","2509025P","2025-11-18","IPC",null,null,null,null,null,null,null,null,5.41,null,null,0.885,null,null],["PFF012","2025-09-30","2509026P","2025-11-24","Libération",null,null,null,null,null,null,null,null,4.7,null,97.57,0.879,280,null],["PFF012","2025-09-30","2509026P","2025-11-24","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.88,null,null],["PFF012","2025-10-01","2510001P","2025-11-24","Libération",null,null,null,null,null,null,null,null,4.7,null,97.54,0.877,281,null],["PFF012","2025-10-01","2510001P","2025-11-24","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.891,null,null],["PFF012","2025-10-02","2510002P","2025-11-25","Libération",null,null,null,null,null,null,null,null,4.6,null,97.35,0.879,282,null],["PFF012","2025-10-02","2510002P","2025-11-25","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.877,null,null],["PFF012","2025-10-03","2510003P","2025-11-27","Libération",null,null,null,null,null,null,null,null,4.6,null,97.72,0.877,283,null],["PFF012","2025-10-03","2510003P","2025-11-27","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.882,null,null],["PFF012","2025-10-20","2510016P","2025-12-05","Libération",null,null,null,null,null,null,null,null,4.8,null,97.65,0.873,281,null],["PFF012","2025-10-20","2510016P","2025-12-05","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.879,null,null],["PFF012","2025-10-21","2510017P","2025-12-02","Libération",null,null,null,null,null,null,null,null,4.7,null,97.33,0.873,275,null],["PFF012","2025-10-21","2510017P","2025-12-02","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.882,null,null],["PFF012","2025-10-22","2510018P","2025-12-08","Libération",null,null,null,null,null,null,null,null,4.7,null,97.42,0.872,274,null],["PFF012","2025-10-22","2510018P","2025-12-08","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.877,null,null],["PFF012","2025-11-10","2511005P","2025-12-08","Libération",null,null,null,null,null,null,null,null,5,null,97.59,0.876,275,null],["PFF012","2025-11-10","2511005P","2025-12-08","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.881,null,null],["PFF012","2025-11-11","2511006P","2025-12-08","Libération",null,null,null,null,null,null,null,null,4.9,null,97.4,0.88,276,null],["PFF012","2025-11-11","2511006P","2025-12-08","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.875,null,null],["PFF012","2025-11-12","2511007P","2025-12-15","Libération",null,null,null,null,null,null,null,null,4.9,null,97.44,0.878,274,null],["PFF012","2025-11-12","2511007P","2025-12-15","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.876,null,null],["PFF012","2025-11-13","2511008P","2025-12-10","Libération",null,null,null,null,null,null,null,null,4.8,null,97.44,0.875,279,null],["PFF012","2025-11-13","2511008P","2025-12-10","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.879,null,null],["PFF012","2025-11-27","2511022P","2025-12-25","Libération",null,null,null,null,null,null,null,null,4.7,null,97.27,0.872,282,null],["PFF012","2025-11-27","2511022P","2025-12-25","IPC",null,null,null,null,null,null,null,null,5.5,null,null,0.876,null,null],["PFF012","2025-11-28","2511023P","2025-12-25","Libération",null,null,null,null,null,null,null,null,4.7,null,97.62,0.869,278,null],["PFF012","2025-11-28","2511023P","2025-12-25","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.881,null,null],["PFF012","2025-12-01","2512001P","2025-12-26","Libération",null,null,null,null,null,null,null,null,4.6,null,97.06,0.876,282,null],["PFF012","2025-12-01","2512001P","2025-12-26","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.874,null,null],["PFF012","2025-12-02","2512002P","2025-12-31","Libération",null,null,null,null,null,null,null,null,4.6,null,97.61,0.871,280,null],["PFF012","2025-12-02","2512002P","2025-12-31","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.872,null,null],["PFF012","2025-12-03","2512003P","2025-12-31","Libération",null,null,null,null,null,null,null,null,4.6,null,97.47,0.871,281,null],["PFF012","2025-12-03","2512003P","2025-12-31","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.868,null,null],["PFF012","2025-12-04","2512004P","2026-01-09","Libération",null,null,null,null,null,null,null,null,4.6,null,97.53,0.872,281,null],["PFF012","2025-12-04","2512004P","2026-01-09","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.879,null,null],["PFF012","2025-12-05","2512005P","2026-01-12","Libération",null,null,null,null,null,null,null,null,4.7,null,97.7,0.871,279,null],["PFF012","2025-12-05","2512005P","2026-01-12","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.871,null,null],["PFF012","2025-12-06","2512006P","2025-01-20","Libération",null,null,null,null,null,null,null,null,4.6,null,97.46,0.871,279,null],["PFF012","2025-12-06","2512006P","2025-01-20","IPC",null,null,null,null,null,null,null,null,6,null,null,0.875,null,null],["PFF012","2025-12-08","2512007P","2026-02-11","IPC",null,null,null,null,null,null,null,null,6,null,null,0.872,null,null],["PFF012","2025-12-08","2512007P","2026-02-11","Libération",null,null,null,null,null,null,null,null,4.7,null,97.62,0.87,281,null],["PFF012","2025-12-09","2512008P","2026-01-15","Libération",null,null,null,null,null,null,null,null,4.7,null,97.81,0.868,283,null],["PFF012","2025-12-09","2512008P","2026-01-15","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.87,null,null],["PFF012","2025-12-10","2512009P","2026-01-15","Libération",null,null,null,null,null,null,null,null,4.7,null,97.91,0.87,280,null],["PFF012","2025-12-10","2512009P","2026-01-15","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.874,null,null],["PFF012","2025-12-11","2512010P","2026-01-21","Libération",null,null,null,null,null,null,null,null,4.8,null,97.93,0.869,282,null],["PFF012","2025-12-11","2512010P","2026-01-21","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.871,null,null],["PFF012","2025-12-12","2512011P","2026-01-21","Libération",null,null,null,null,null,null,null,null,4.7,null,97.93,0.87,279,null],["PFF012","2025-12-12","2512011P","2026-01-21","IPC",null,null,null,null,null,null,null,null,6,null,null,0.866,null,null],["PFF012","2025-12-13","2512012P","2026-01-29","Libération",null,null,null,null,null,null,null,null,4.7,null,97.78,0.869,278,null],["PFF012","2025-12-13","2512012P","2026-01-29","IPC",null,null,null,null,null,null,null,null,6.28,null,null,0.87,null,null],["PFF012","2025-12-15","2512013P","2026-01-22","Libération",null,null,null,null,null,null,null,null,4.8,null,97.7,0.872,279,null],["PFF012","2025-12-15","2512013P","2026-01-22","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.872,null,null],["PFF012","2025-12-29","2512026P","2026-01-30","Libération",null,null,null,null,null,null,null,null,4.9,null,99.23,0.876,277,null],["PFF012","2025-12-29","2512026P","2026-01-30","IPC",null,null,null,null,null,null,null,null,6,null,null,0.885,null,null],["PFF012","2025-12-30","2512027P","2026-02-06","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.885,null,null],["PFF012","2025-12-30","2512027P","2026-02-06","Libération",null,null,null,null,null,null,null,null,4.9,null,97.63,0.876,278,null],["PFF012","2025-12-31","2512028P","2026-02-09","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.882,null,null],["PFF012","2025-12-31","2512028P","2026-02-09","Libération",null,null,null,null,null,null,null,null,4.8,null,97.75,0.876,277,null],["PFF012","2026-01-09","2601009P","2026-02-11","IPC",null,null,null,null,null,null,null,null,6,null,null,0.874,null,null],["PFF012","2026-01-09","2601009P","2026-02-11","Libération",null,null,null,null,null,null,null,null,4.7,null,97.66,0.87,276,null],["PFF012","2026-01-12","2601011P","2026-02-13","IPC"," ",null,null,null,null,null,null,null,5.9,null,null,0.878,null,null],["PFF012","2026-01-12","2601011P","2026-02-13","Libération",null,null,null,null,null,null,null,null,4.7,null,97.46,0.88,278,null],["PFF012","2026-01-13","2601012P","2026-02-13","IPC",null,null,null,null,null,null,null,null,6,null,null,0.873,null,null],["PFF012","2026-01-13","2601012P","2026-02-13","Libération",null,null,null,null,null,null,null,null,4.7,null,97.52,0.876,277,null],["PFF012","2026-01-15","2601014P","2026-02-20","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.87,null,null],["PFF012","2026-01-15","2601014P","2026-02-20","Libération",null,null,null,null,null,null,null,null,4.8,null,97.57,0.868,276,null],["PFF013","2025-01-01","2501001P","2025-01-30","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.88,null,null],["PFF013","2025-01-01","2501001P","2025-01-30","Libération",null,null,null,null,null,null,null,null,4.8,null,98.25,0.88,278,null],["PFF013","2025-01-06","2501002P","2025-02-03","IPC",null,null,null,null,null,null,null,null,6,null,null,0.885,null,null],["PFF013","2025-01-06","2501002P","2025-02-03","Libération",null,null,null,null,null,null,null,null,4.9,null,98.17,0.881,278,null],["PFF013","2025-01-07","2501003P","2025-02-03","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.88,null,null],["PFF013","2025-01-07","2501003P","2025-02-03","Libération",null,null,null,null,null,null,null,null,4.8,null,98.5,0.877,278,null],["PFF013","2025-01-08","2501004P","2025-02-05","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.882,null,null],["PFF013","2025-01-08","2501004P","2025-02-05","Libération",null,null,null,null,null,null,null,null,5,null,98.44,0.871,280,null],["PFF013","2025-01-09","2501005P","2025-02-26","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.882,null,null],["PFF013","2025-01-09","2501005P","2025-02-26","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.882,null,null],["PFF013","2025-01-09","2501005P","2025-02-26","IPC",null,null,null,null,null,null,null,null,4.9,null,98.54,0.882,279,null],["PFF013","2025-01-09","2501005P","2025-02-26","Libération",null,null,null,null,null,null,null,null,4.9,null,98.54,0.882,279,null],["PFF013","2025-01-10","2501006P","2025-02-10","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.883,null,null],["PFF013","2025-01-10","2501006P","2025-02-10","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.883,null,null],["PFF013","2025-01-10","2501006P","2025-02-10","IPC",null,null,null,null,null,null,null,null,4.8,null,98.53,0.883,279,null],["PFF013","2025-01-10","2501006P","2025-02-10","Libération",null,null,null,null,null,null,null,null,4.8,null,98.53,0.883,279,null],["PFF013","2025-02-03","2502002P","2025-03-19","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.882,null,null],["PFF013","2025-02-03","2502002P","2025-03-19","Libération",null,null,null,null,null,null,null,null,4.9,null,98.54,0.884,278,null],["PFF013","2025-02-04","2502003P","2025-04-08","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.881,null,null],["PFF013","2025-02-04","2502003P","2025-04-08","Libération",null,null,null,null,null,null,null,null,4.8,null,98.36,0.884,279,null],["PFF013","2025-02-05","2502004P","2025-03-28","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.886,null,null],["PFF013","2025-02-05","2502004P","2025-03-28","Libération",null,null,null,null,null,null,null,null,4.8,null,98.8,0.887,278,null],["PFF013","2025-02-06","2502005P","2025-03-05","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.883,null,null],["PFF013","2025-02-06","2502005P","2025-03-05","Libération",null,null,null,null,null,null,null,null,4.8,null,98.94,0.88,281,null],["PFF013","2025-02-07","2502006P","2025-03-11","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.886,null,null],["PFF013","2025-02-07","2502006P","2025-03-11","Libération",null,null,null,null,null,null,null,null,4.8,null,98.69,0.878,280,null],["PFF013","2025-02-08","2502007P","2025-03-07","IPC",null,null,null,null,null,null,null,null,6.02,null,null,0.896,null,null],["PFF013","2025-02-08","2502007P","2025-03-07","Libération",null,null,null,null,null,null,null,null,4.8,null,98.26,0.884,280,null],["PFF013","2025-03-03","2503001P","2025-04-14","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.883,null,null],["PFF013","2025-03-03","2503001P","2025-04-14","Libération",null,null,null,null,null,null,null,null,4.8,null,98.03,0.879,279,null],["PFF013","2025-03-04","2503002P","2025-04-10","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.873,null,null],["PFF013","2025-03-04","2503002P","2025-04-10","Libération",null,null,null,null,null,null,null,null,4.8,null,98.7,0.87,277,null],["PFF013","2025-03-05","2503003P","2025-04-10","IPC",null,null,null,null,null,null,null,null,6,null,null,0.872,null,null],["PFF013","2025-03-05","2503003P","2025-04-10","Libération",null,null,null,null,null,null,null,null,4.8,null,98.4,0.872,277,null],["PFF013","2025-03-06","2503004P","2025-05-16","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.874,null,null],["PFF013","2025-03-06","2503004P","2025-05-16","Libération",null,null,null,null,null,null,null,null,4.8,null,98.6,0.877,277,null],["PFF013","2025-03-07","2503005P","2025-04-14","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.875,null,null],["PFF013","2025-03-07","2503005P","2025-04-14","Libération",null,null,null,null,null,null,null,null,4.8,null,98.65,0.874,278,null],["PFF013","2025-03-17","2503011P","2025-05-16","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.892,null,null],["PFF013","2025-03-17","2503011P","2025-05-16","Libération",null,null,null,null,null,null,null,null,4.8,null,98.36,0.879,279,null],["PFF013","2025-03-18","2503012P","2025-05-16","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.869,null,null],["PFF013","2025-03-18","2503012P","2025-05-16","Libération",null,null,null,null,null,null,null,null,4.8,null,98.36,0.877,278,null],["PFF013","2025-03-19","2503013P","2025-04-21","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.879,null,null],["PFF013","2025-03-19","2503013P","2025-04-21","Libération",null,null,null,null,null,null,null,null,4.8,null,98.55,0.881,279,null],["PFF013","2025-03-20","2503014P","2025-05-19","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.878,null,null],["PFF013","2025-03-20","2503014P","2025-05-19","Libération",null,null,null,null,null,null,null,null,4.8,null,98.66,0.882,278,null],["PFF013","2025-03-21","2503015P","2025-04-24","IPC",null,null,null,null,null,null,null,null,6.5,null,null,0.887,null,null],["PFF013","2025-03-21","2503015P","2025-04-24","Libération",null,null,null,null,null,null,null,null,4.8,null,98.37,0.88,280,null],["PFF013","2025-05-26","2505019P","2025-06-24","IPC",null,null,null,null,null,null,null,null,6.7,null,null,0.874,null,null],["PFF013","2025-05-26","2505019P","2025-06-24","Libération",null,null,null,null,null,null,null,null,4.8,null,98.39,0.878,290,null],["PFF013","2025-05-28","2505021P","2025-07-10","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.877,null,null],["PFF013","2025-05-28","2505021P","2025-07-10","Libération",null,null,null,null,null,null,null,null,4.7,null,98.44,0.872,276,null],["PFF013","2025-05-29","2505022P","2025-07-17","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.877,null,null],["PFF013","2025-05-29","2505022P","2025-07-17","Libération",null,null,null,null,null,null,null,null,4.7,null,98.53,0.874,291,null],["PFF013","2025-06-16","2506009P","2025-07-17","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.875,null,null],["PFF013","2025-06-16","2506009P","2025-07-17","Libération",null,null,null,null,null,null,null,null,4.8,null,98.38,0.873,275,null],["PFF013","2025-06-17","2506010P","2025-07-21","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.872,null,null],["PFF013","2025-06-17","2506010P","2025-07-21","Libération",null,null,null,null,null,null,null,null,4.9,null,98.54,0.875,276,null],["PFF013","2026-06-18","2506011P","2025-07-24","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.878,null,null],["PFF013","2026-06-18","2506011P","2025-07-24","Libération",null,null,null,null,null,null,null,null,4.9,null,98.66,0.874,278,null],["PFF013","2025-06-19","2506012P","2025-08-05","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.868,null,null],["PFF013","2025-06-19","2506012P","2025-08-05","Libération",null,null,null,null,null,null,null,null,4.8,null,98.55,0.873,275,null],["PFF013","2025-06-20","2506013P","2025-07-30","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.879,null,null],["PFF013","2025-06-20","2506013P","2025-07-30","Libération",null,null,null,null,null,null,null,null,4.9,null,98.45,0.871,275,null],["PFF013","2025-06-21","2506014P","2025-07-30","IPC",null,null,null,null,null,null,null,null,6.84,null,null,0.863,null,null],["PFF013","2025-06-21","2506014P","2025-07-30","Libération",null,null,null,null,null,null,null,null,4.9,null,98.26,0.872,277,null],["PFF013","2025-07-14","2507012P","2025-08-08","IPC",null,null,null,null,null,null,null,null,6,null,null,0.88,null,null],["PFF013","2025-07-14","2507012P","2025-08-08","Libération",null,null,null,null,null,null,null,null,4.8,null,97.99,0.877,280,null],["PFF013","2025-07-15","2507013P","2025-09-04","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.873,null,null],["PFF013","2025-07-15","2507013P","2025-09-04","Libération",null,null,null,null,null,null,null,null,4.9,null,99.36,0.887,278,null],["PFF013","2025-07-16","2507014P","2025-08-12","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.877,null,null],["PFF013","2025-07-16","2507014P","2025-08-12","Libération",null,null,null,null,null,null,null,null,4.9,null,98.73,0.887,276,null],["PFF013","2025-07-17","2507015P","2025-08-13","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.877,null,null],["PFF013","2025-07-17","2507015P","2025-08-13","Libération",null,null,null,null,null,null,null,null,4.9,null,98.75,0.877,276,null],["PFF013","2025-07-18","2507016P","2025-08-13","IPC",null,null,null,null,null,null,null,null,6.1,null,null,0.879,null,null],["PFF013","2025-07-18","2507016P","2025-08-13","Libération",null,null,null,null,null,null,null,null,4.9,null,98.77,0.876,276,null],["PFF013","2025-07-21","2507017P","2025-10-01","IPC",null,null,null,null,null,null,null,null,6,null,null,0.88,null,null],["PFF013","2025-07-21","2507017P","2025-10-01","Libération",null,null,null,null,null,null,null,null,4.9,null,98.62,0.879,279,null],["PFF013","2025-07-22","2507018P","2025-10-01","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.875,null,null],["PFF013","2025-07-22","2507018P","2025-10-01","Libération",null,null,null,null,null,null,null,null,4.9,null,98.61,0.873,277,null],["PFF013","2025-07-23","2507019P","2025-09-11","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.871,null,null],["PFF013","2025-07-23","2507019P","2025-09-11","Libération",null,null,null,null,null,null,null,null,4.9,null,98.43,0.872,281,null],["PFF013","2025-07-24","2507020P","2025-09-20","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.876,null,null],["PFF013","2025-07-24","2507020P","2025-09-20","Libération",null,null,null,null,null,null,null,null,5,null,98.5,0.873,280,null],["PFF013","2025-07-25","2507021P","2025-09-20","IPC",null,null,null,null,null,null,null,null,6.4,null,null,0.88,null,null],["PFF013","2025-07-25","2507021P","2025-09-20","Libération",null,null,null,null,null,null,null,null,4.8,null,98.53,0.877,279,null],["PFF013","2025-09-08","2509004P","2025-10-22","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.879,null,null],["PFF013","2025-09-08","2509004P","2025-10-22","Libération",null,null,null,null,null,null,null,null,4.7,null,98.21,0.883,284,null],["PFF013","2025-09-09","2509005P","2025-10-07","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.876,null,null],["PFF013","2025-09-09","2509005P","2025-10-07","Libération",null,null,null,null,null,null,null,null,4.8,null,98.59,0.882,285,null],["PFF013","       10/09/2025","2509006P","2025-10-07","IPC",null,null,null,null,null,null,null,null,6,null,null,0.899,null,null],["PFF013","       10/09/2025","2509006P","2025-10-07","Libération",null,null,null,null,null,null,null,null,4.8,null,98.41,0.882,282,null],["PFF013","2025-09-11","2509007P","2025-10-09","IPC",null,null,null,null,null,null,null,null,6,null,null,0.886,null,null],["PFF013","2025-09-11","2509007P","2025-10-09","Libération",null,null,null,null,null,null,null,null,4.8,null,98.52,0.88,284,null],["PFF013","2025-10-06","2510004P","2025-10-28","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.886,null,null],["PFF013","2025-10-06","2510004P","2025-10-28","Libération",null,null,null,null,null,null,null,null,4.7,null,97.95,0.877,282,null],["PFF013","2025-10-07","2510005P","2025-10-29","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.875,null,null],["PFF013","2025-10-07","2510005P","2025-10-29","Libération",null,null,null,null,null,null,null,null,4.8,null,98.15,0.878,284,null],["PFF013","2025-10-08","2510006P","2025-10-30","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.88,null,null],["PFF013","2025-10-08","2510006P","2025-10-30","Libération",null,null,null,null,null,null,null,null,4.7,null,98.37,0.884,283,null],["PFF013","2025-10-09","2510007P","2025-10-31","IPC",null,null,null,null,null,null,null,null,6,null,null,0.88,null,null],["PFF013","2025-10-09","2510007P","2025-10-31","Libération",null,null,null,null,null,null,null,null,4.8,null,98.44,0.876,284,null],["PFF013","2025-10-10","2510008P","2025-11-03","IPC",null,null,null,null,null,null,null,null,5.8,null,null,0.885,null,null],["PFF013","2025-10-10","2510008P","2025-11-03","Libération",null,null,null,null,null,null,null,null,4.7,null,98.61,0.882,283,null],["PFF013","2025-10-11","2510009P","2025-11-04","IPC",null,null,null,null,null,null,null,null,5.59,null,null,0.889,null,null],["PFF013","2025-10-11","2510009P","2025-11-04","Libération",null,null,null,null,null,null,null,null,4.8,null,98.45,0.878,284,null],["PFF013","2025-10-13","2510010P","2025-11-05","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.881,null,null],["PFF013","2025-10-13","2510010P","2025-11-05","Libération",null,null,null,null,null,null,null,null,4.8,null,98.44,0.884,284,null],["PFF013","2025-10-14","2510011P","2025-11-06","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.881,null,null],["PFF013","2025-10-14","2510011P","2025-11-06","Libération",null,null,null,null,null,null,null,null,4.8,null,98.78,0.883,284,null],["PFF013","2025-10-15","2510012P","2025-11-10","IPC",null,null,null,null,null,null,null,null,6,null,null,0.88,null,null],["PFF013","2025-10-15","2510012P","2025-11-10","Libération",null,null,null,null,null,null,null,null,4.8,null,98.56,0.884,281,null],["PFF013","2025-10-16","2510013P","2025-11-10","IPC",null,null,null,null,null,null,null,null,6.2,null,null,0.876,null,null],["PFF013","2025-10-16","2510013P","2025-11-10","Libération",null,null,null,null,null,null,null,null,4.8,null,95.6,0.879,284,null],["PFF013","2025-10-17","2510014P","2025-11-10","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.874,null,null],["PFF013","2025-10-17","2510014P","2025-11-10","Libération",null,null,null,null,null,null,null,null,4.8,null,98.63,0.885,282,null],["PFF013","2025-10-18","2510015P","2025-11-14","IPC",null,null,null,null,null,null,null,null,5.62,null,null,0.871,null,null],["PFF013","2025-10-18","2510015P","2025-11-14","Libération",null,null,null,null,null,null,null,null,4.7,null,98.63,0.881,283,null],["PFF013","2025-10-29","2510026P","2025-11-19","IPC",null,null,null,null,null,null,null,null,6,null,null,0.886,null,null],["PFF013","2025-10-29","2510026P","2025-11-19","Libération",null,null,null,null,null,null,null,null,4.8,null,98.67,0.885,277,null],["PFF013","2025-10-30","2510027P","2025-11-19","IPC",null,null,null,null,null,null,null,null,6.6,null,null,0.899,null,null],["PFF013","2025-10-30","2510027P","2025-11-19","Libération",null,null,null,null,null,null,null,null,4.8,null,98.9,0.883,277,null],["PFF013","2025-10-31","2510028P","2025-11-25","IPC",null,null,null,null,null,null,null,null,6.3,null,null,0.881,null,null],["PFF013","2025-10-31","2510028P","2025-11-25","Libération",null,null,null,null,null,null,null,null,4.8,null,98.77,0.883,276,null],["PFF013","2025-11-24","2511019P","2025-12-15","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.874,null,null],["PFF013","2025-11-24","2511019P","2025-12-15","Libération",null,null,null,null,null,null,null,null,4.7,null,98.44,0.872,278,null],["PFF013","2025-11-25","2511020P","2025-12-18","IPC",null,null,null,null,null,null,null,null,5.62,null,null,0.872,null,null],["PFF013","2025-11-25","2511020P","2025-12-18","Libération",null,null,null,null,null,null,null,null,4.7,null,98.77,0.877,276,null],["PFF013","2025-11-26","2511021P","2025-12-18","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.881,null,null],["PFF013","2025-11-26","2511021P","2025-12-18","Libération",null,null,null,null,null,null,null,null,4.8,null,98.7,0.873,276,null],["PFF013","2025-12-16","2512014P","2026-01-07","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.878,null,null],["PFF013","2025-12-16","2512014P","2026-01-07","Libération",null,null,null,null,null,null,null,null,4.7,null,98.92,0.874,281,null],["PFF013","2025-12-17","2512015P","2026-01-06","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.871,null,null],["PFF013","2025-12-17","2512015P","2026-01-06","Libération",null,null,null,null,null,null,null,null,4.8,null,98.46,0.87,280,null],["PFF013","2025-12-18","2512016P","2026-01-09","IPC",null,null,null,null,null,null,null,null,5.6,null,null,0.876,null,null],["PFF013","2025-12-18","2512016P","2026-01-09","Libération",null,null,null,null,null,null,null,null,4.8,null,98.68,0.871,281,null],["PFF013","2025-12-19","2512017P","2026-01-12","IPC",null,null,null,null,null,null,null,null,5.7,null,null,0.877,null,null],["PFF013","2025-12-19","2512017P","2026-01-12","Libération",null,null,null,null,null,null,null,null,4.7,null,98.6,0.871,280,null],["PFF013","2025-12-20","2512018P","2026-01-15","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.873,null,null],["PFF013","2025-12-20","2512018P","2026-01-15","Libération",null,null,null,null,null,null,null,null,4.8,null,98.94,0.887,281,null],["PFF013","2025-12-20","2512018P","2026-01-15","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.873,null,null],["PFF013","2025-12-20","2512018P","2026-01-15","Libération",null,null,null,null,null,null,null,null,4.8,null,98.94,0.871,281,null],["PFF013","2026-01-07","2601005P","2026-02-04","IPC",null,null,null,null,null,null,null,null,6.85,null,null,0.871,null,null],["PFF013","2026-01-07","2601005P","2026-02-04","Libération",null,null,null,null,null,null,null,null,4.7,null,98.19,0.869,276,null],["PFF013","2026-01-08","2601007P","2026-02-04","IPC",null,null,null,null,null,null,null,null,6.86,null,null,0.869,null,null],["PFF013","2026-01-08","2601007P","2026-02-04","Libération",null,null,null,null,null,null,null,null,4.7,null,98.36,0.871,279,null],["PFF013","2026-01-08","2601008P","2026-01-29","IPC",null,null,null,null,null,null,null,null,5.9,null,null,0.882,null,null],["PFF013","2026-01-08","2601008P","2026-01-29","Libération",null,null,null,null,null,null,null,null,4.7,null,98.36,0.873,275,null],["PFF017","2025-01-20","2501011P","2025-02-18","IPC",null,null,null,null,null,null,4.87,null,6.36,null,null,null,null,null],["PFF017","2025-01-20","2501011P","2025-02-18","Libération",null,null,null,null,null,null,4.77,null,4.5,null,98.96,null,283,0.089],["PFF017","2025-01-21","2501012P","2025-02-24","IPC",null,null,null,null,null,null,4.89,null,6.3,null,null,null,null,null],["PFF017","2025-01-21","2501012P","2025-02-24","Libération",null,null,null,null,null,null,4.8,null,4.5,null,98.81,null,284,0.069],["PFF017","2025-01-22","2501013P","2025-02-18","IPC",null,null,null,null,4.87,null,null,null,6.1,null,null,null,null,null],["PFF017","2025-01-22","2501013P","2025-02-18","Libération",null,null,null,null,null,null,4.79,null,null,null,98.71,null,284,0.07],["PFF017","2025-01-23","2501014P","2025-02-28","IPC",null,null,null,null,null,null,4.9,null,6.3,null,null,null,null,null],["PFF017","2025-01-23","2501014P","2025-02-28","Libération",null,null,null,null,null,null,4.78,null,4.5,null,98.76,null,284,0.067],["PFF017","2025-01-24","2501015P","2025-02-28","IPC",null,null,null,null,null,null,4.9,null,6.4,null,null,null,null,null],["PFF017","2025-01-24","2501015P","2025-02-28","Libération",null,null,null,null,null,null,4.77,null,4.4,null,98.67,null,282,0.065],["PFF017","2025-02-17","2502014P","2025-04-24","IPC",null,null,null,null,null,null,4.89,null,5.75,null,null,null,null,null],["PFF017","2025-02-17","2502014P","2025-04-24","Libération",null,null,null,null,null,null,4.77,null,4.4,null,98.98,null,287,0.096],["PFF017","2025-02-18","2502015P","2025-03-18","IPC",null,null,null,null,null,null,4.89,null,5.98,null,null,null,null,null],["PFF017","2025-02-18","2502015P","2025-03-18","Libération",null,null,null,null,null,null,4.78,null,4.4,null,98.87,null,286,0.098],["PFF017","2025-02-19","2502016P","2025-05-16","IPC",null,null,null,null,null,null,4.88,null,5.9,null,null,null,null,null],["PFF017","2025-02-19","2502016P","2025-05-16","Libération",null,null,null,null,null,null,4.78,null,4.4,null,98.86,null,283,0.09],["PFF017","2025-04-02","2504001P","2025-05-06","IPC",null,null,null,null,null,null,4.9,null,5.8,null,null,null,null,null],["PFF017","2025-04-02","2504001P","2025-05-06","Libération",null,null,null,null,null,null,4.79,null,4.5,null,98.91,null,286,0.15],["PFF017","2025-04-03","2504002P","2025-05-22","IPC",null,null,null,null,null,null,4.86,null,5.78,null,null,null,null,null],["PFF017","2025-04-03","2504002P","2025-05-22","Libération",null,null,null,null,null,null,4.78,null,4.5,null,98.91,null,286,0.108],["PFF017","2025-04-04","2504003P","2025-06-03","IPC",null,null,null,null,null,null,4.91,null,5.83,null,null,null,null,null],["PFF017","2025-04-04","2504003P","2025-06-03","Libération",null,null,null,null,null,null,4.8,null,4.5,null,98.69,null,286,0.111],["PFF017","2025-06-10","2506005P","2025-07-23","IPC",null,null,null,null,null,null,4.91,null,6.2,null,null,null,null,null],["PFF017","2025-06-10","2506005P","2025-07-23","Libération",null,null,null,null,null,null,4.82,null,4.4,null,98.84,null,284,0.099],["PFF017","2025-06-11","2506006P","2025-07-23","IPC",null,null,null,null,4.91,null,null,null,5.9,null,null,null,null,null],["PFF017","2025-06-11","2506006P","2025-07-23","Libération",null,null,null,null,null,null,4.78,null,4.4,null,99.15,null,285,0.104],["PFF017","2025-06-12","2506007P","2025-07-17","IPC",null,null,null,null,null,null,4.91,null,6.06,null,null,null,null,null],["PFF017","2025-06-12","2506007P","2025-07-17","Libération",null,null,null,null,null,null,4.78,null,4.4,null,98.76,null,285,0.095],["PFF017","2025-08-05","2508006P","2025-08-22","IPC",null,null,null,null,null,null,4.89,null,6,null,null,null,null,null],["PFF017","2025-08-05","2508006P","2025-08-22","Libération",null,null,null,null,null,null,4.78,null,4.3,null,99.12,null,283,0.135],["PFF017","2025-08-06","2508007P","2025-09-08","IPC",null,null,null,null,null,null,4.87,null,6.1,null,null,null,null,null],["PFF017","2025-08-06","2508007P","2025-09-08","Libération",null,null,null,null,null,null,4.8,null,4.4,null,99.14,null,283,0.17],["PFF017","2025-08-07","2508008P","2025-09-17","IPC",null,null,null,null,null,null,4.9,null,5.8,null,null,null,null,null],["PFF017","2025-08-07","2508008P","2025-09-17","Libération",null,null,null,null,null,null,4.81,null,4.4,null,99.12,null,285,0.131],["PFF017","2025-08-08","2508009P","2025-09-17","IPC",null,null,null,null,null,null,4.89,null,5.8,null,null,null,null,null],["PFF017","2025-08-08","2508009P","2025-09-17","Libération",null,null,null,null,null,null,4.83,null,4.3,null,99.06,null,285,0.125],["PFF017","2025-09-02","2509001P","2025-09-24","IPC",null,null,null,null,null,null,4.87,null,5.57,null,null,null,null,null],["PFF017","2025-09-02","2509001P","2025-09-24","Libération",null,null,null,null,null,null,4.79,null,4.5,null,98.99,null,288,0.118],["PFF017","2025-09-03","2509002P","2025-09-24","IPC",null,null,null,null,null,null,4.88,null,5.8,null,null,null,null,null],["PFF017","2025-09-03","2509002P","2025-09-24","Libération",null,null,null,null,null,null,4.79,null,4.5,null,98.98,null,287,0.136],["PFF017","2025-09-04","2509003P","2025-09-29","IPC",null,null,null,null,null,null,4.88,null,5.9,null,null,null,null,null],["PFF017","2025-09-04","2509003P","2025-09-29","Libération",null,null,null,null,null,null,4.8,null,4.3,null,99.03,null,288,0.149],["PFF017","2025-09-15","2509012P","2025-10-07","IPC",null,null,null,null,null,null,4.82,null,5.8,null,null,null,null,null],["PFF017","2025-09-15","2509012P","2025-10-07","Libération",null,null,null,null,null,null,4.81,null,4.3,null,98.56,null,292,0.213],["PFF017","2025-09-16","2509013P","2025-10-09","IPC",null,null,null,null,null,null,4.74,null,5.8,null,null,null,null,null],["PFF017","2025-09-16","2509013P","2025-10-09","Libération",null,null,null,null,null,null,4.81,null,4.4,null,98.73,null,287,0.096],["PFF017","2025-09-17","2509014P","2025-10-24","IPC",null,null,null,null,null,null,4.86,null,5.5,null,null,null,null,null],["PFF017","2025-09-17","2509014P","2025-10-24","Libération",null,null,null,null,null,null,4.8,null,4.5,null,99.05,null,287,0.126],["PFF017","2025-09-18","2509015P","2025-10-24","IPC",null,null,null,null,null,null,4.86,null,5.63,null,null,null,null,null],["PFF017","2025-09-18","2509015P","2025-10-24","Libération",null,null,null,null,null,null,4.77,null,4.4,null,98.97,null,291,0.085],["PFF017","2025-11-03","2511001P","2025-11-26","IPC",null,null,null,null,null,null,4.88,null,6.3,null,null,null,null,null],["PFF017","2025-11-03","2511001P","2025-11-26","Libération",null,null,null,null,null,null,4.78,null,4.3,null,98.55,null,284,0.093],["PFF017","2025-11-04","2511002P","2025-11-26","IPC",null,null,null,null,null,null,4.88,null,6,null,null,null,null,null],["PFF017","2025-11-04","2511002P","2025-11-26","Libération",null,null,null,null,null,null,4.79,null,4.4,null,98.66,null,283,0.123],["PFF017","2025-11-05","2511003P","2025-11-26","IPC",null,null,null,null,null,null,4.87,null,6.1,null,null,null,null,null],["PFF017","2025-11-05","2511003P","2025-11-26","Libération",null,null,null,null,null,null,4.8,null,4.4,null,98.94,null,284,0.096],["PFF017","2025-11-06","2511004P","2025-12-22","IPC",null,null,null,null,null,null,5.87,null,6.2,null,null,null,null,null],["PFF017","2025-11-06","2511004P","2025-12-22","Libération",null,null,null,null,null,null,4.81,null,4.3,null,98.77,null,284,0.176],["PFF017","2025-12-22","2512019P","2026-01-15","IPC",null,null,null,null,null,null,4.81,null,5.9,null,null,null,null,null],["PFF017","2025-12-22","2512019P","2026-01-15","Libération",null,null,null,null,null,null,4.78,null,4.3,null,97.99,null,284,0.089],["PFF017","2025-12-23","2512020P","2026-01-23","IPC",null,null,null,null,null,null,4.83,null,5.7,null,null,null,null,null],["PFF017","2025-12-23","2512020P","2026-01-23","Libération",null,null,null,null,null,null,4.79,null,4.3,null,98.87,null,285,0.098],["PFF017","2025-12-24","2512021P","2026-01-30","IPC",null,null,null,null,null,null,4.8,null,5.6,null,null,null,null,null],["PFF017","2025-12-24","2512021P","2026-01-30","Libération",null,null,null,null,null,null,4.78,null,4.4,null,98.96,null,286,0.092],["PFF017","2025-12-25","2512022P","2026-02-09","IPC",null,null,null,null,null,null,4.82,null,6,null,null,null,null,null],["PFF017","2025-12-25","2512022P","2026-02-09","Libération",null,null,null,null,null,null,4.77,null,4.4,null,99.12,null,285,0.101],["PFF022","2025-01-15","2501006D","2025-02-06","IPC",null,null,null,null,3215.45,146.37,null,null,2.2,null,null,null,null,null],["PFF022","2025-01-15","2501006D","2025-02-06","Libération",2990.46,37.92,66.54,18.79,3184.97,145.96,null,null,2.05,5633.3,98.99,null,null,null],["PFF022","2025-01-29","2501018D","2025-03-07","IPC",null,null,null,null,3258.06,144.03,null,null,2.2,null,null,null,null,null],["PFF022","2025-01-29","2501018D","2025-03-07","Libération",2957.84,74.94,64.87,18.1,3264.96,142.46,null,null,2.2,5629.5,98.64,null,null,null],["PFF022","2025-02-11","2502005D","2025-03-06","IPC",null,null,null,null,3194.25,147.47,null,null,2.2,null,null,null,null,null],["PFF022","2025-02-11","2502005D","2025-03-06","Libération",3014.93,70.59,62.21,18.24,3229.73,144.26,null,null,2,5633.1,98.7,null,null,null],["PFF022","2025-02-24","2502017D","2025-04-08","IPC",null,null,null,null,3195.45,143.47,null,null,2.2,null,null,null,null,null],["PFF022","2025-02-24","2502017D","2025-04-08","Libération",2946.96,72.38,64.17,18.1,3194.02,143.8,null,null,2.1,5629.4,98.77,null,null,null],["PFF022","2025-02-25","2502018D","2025-03-18","Libération",3963.27,76.47,64.75,18.24,3103.55,143.32,null,null,2.1,5623.4,98.03,null,null,null],["PFF022","2025-03-17","2503012D","2025-03-24","IPC",null,null,null,null,3185.33,142.93,null,null,3.4,null,null,null,null,null],["PFF022","2025-03-17","2503012D","2025-03-24","Libération",2944.24,73.15,62.5,18.24,3204.97,143.71,null,null,2.1,5634.4,99.01,null,null,null],["PFF022","2025-03-18","2503013D","2025-03-28","IPC",null,null,null,null,3190.92,143.52,null,null,2.1,null,null,null,null,null],["PFF022","2025-03-18","2503013D","2025-03-28","Libération",2925.21,72.38,64.37,17.69,3208.78,144.51,null,null,2.1,5634.7,99.36,null,null,null],["PFF022","2025-03-19","2503014D","2025-04-28","IPC",null,null,null,null,3158.78,144.13,null,null,2.2,null,null,null,null,null],["PFF022","2025-03-19","2503014D","2025-04-28","Libération",2938.81,76.99,64.46,17.69,3174.49,144.81,null,null,2.1,5627.1,98.79,null,null,null],["PFF022","2025-03-20","2503015D","2025-05-19","IPC",null,null,null,null,3191.87,142.9,null,null,2.2,null,null,null,null,null],["PFF022","2025-03-20","2503015D","2025-05-19","Libération",2971.43,74.94,64.62,17.69,3219.73,145.27,null,null,2.1,5632.9,98.83,null,null,null],["PFF022","2025-04-02","2504001D","2025-04-28","IPC",null,null,null,null,3169.97,143.78,null,null,2.1,null,null,null,null,null],["PFF022","2025-04-02","2504001D","2025-04-28","Libération",2919.78,73.66,62.38,19.06,3197.82,143.11,null,null,2.1,5629.2,99.52,null,null,null],["PFF022","2025-04-03","2504002D","2025-06-03","IPC",null,null,null,null,3169.73,144.12,null,null,2.2,null,null,null,null,null],["PFF022","2025-04-03","2504002D","2025-06-03","Libération",2919.78,72.89,63.54,18.79,3103.42,143.19,null,null,2.1,5637.4,98.84,null,null,null],["PFF022","2025-04-14","2504012D","2025-05-22","IPC",null,null,null,null,3169.42,142.67,null,null,2.1,null,null,null,null,null],["PFF022","2025-04-14","2504012D","2025-05-22","Libération",2889.87,71.61,62.21,18.1,3173.38,143.05,null,null,2.1,5632.2,99.27,null,null,null],["PFF022","2025-06-10","2506006D","2025-07-03","IPC",null,null,null,null,3147.21,144.07,null,null,2.1,null,null,null,null,null],["PFF022","2025-06-10","2506006D","2025-07-03","Libération",2968.71,73.4,65.33,18.79,3142.25,145.15,null,null,2.1,5633.3,99.37,null,null,null],["PFF022","2025-06-30","2506026D","2025-08-08","IPC",null,null,null,null,3166.01,144.41,null,null,2.1,null,null,null,null,null],["PFF022","2025-06-30","2506026D","2025-08-08","Libération",2946.96,73.66,64.75,18.38,3124.36,142.9,null,null,2.1,5635.2,99.59,null,null,null],["PFF022","2025-07-28","2507025D","2025-10-01","IPC",null,null,null,null,3178.3,145.27,null,null,2.1,null,null,null,null,null],["PFF022","2025-07-28","2507025D","2025-10-01","Libération",2927.93,71.87,64.08,18.38,3145.78,146.71,null,null,2.1,5634.8,99.03,null,null,null],["PFF022","2025-07-29","2507026D","2025-10-01","IPC",null,null,null,null,3180.24,146.84,null,null,2.1,null,null,null,null,null],["PFF022","2025-07-29","2507026D","2025-10-01","Libération",2946.96,72.64,63,18.24,3159.1,144.66,null,null,2.1,5636.3,98.95,null,null,null],["PFF022","2025-09-22","2509018D","2025-10-13","IPC",null,null,null,null,3256.87,144.41,null,null,2,null,null,null,null,null],["PFF022","2025-09-22","2509018D","2025-10-13","Libération",2985.02,71.61,62.75,18.24,3233.06,145.65,null,null,2,5633.2,98.39,null,null,null],["PFF022","2025-09-30","2509026D","2025-10-31","IPC",null,null,null,null,3278.77,145.22,null,null,2,null,null,null,null,null],["PFF022","2025-09-30","2509026D","2025-10-31","Libération",2982.3,71.1,62.71,18.38,3272.1,146.05,null,null,2,5641.1,98.72,null,null,null],["PFF022","2025-10-21","2510019D","2025-11-24","IPC",null,null,null,null,3201.04,145.28,null,null,2.1,null,null,null,null,null],["PFF022","2025-10-21","2510019D","2025-11-24","Libération",2903.47,72.89,64.75,18.1,3234.96,145.53,null,null,2.1,5639.6,99.07,null,null,null],["PFF022","2025-11-24","2511006D","2025-12-15","IPC",null,null,null,null,3187.59,147.2,null,null,2,null,null,null,null,null],["PFF022","2025-11-24","2511006D","2025-12-15","Libération",2960.56,73.66,64,18.1,3169.26,145.71,null,null,2,5635,99.24,null,null,null],["PFF022","2025-12-01","2512001D","2026-01-06","IPC",null,null,null,null,3257.9,145.71,null,null,2.1,null,null,null,null,null],["PFF022","2025-12-01","2512001D","2026-01-06","Libération",2946.96,72.77,62,18.38,3217.82,144.26,null,null,2.1,5635.6,99.44,null,null,null],["PFF022","2026-01-13","2601009D","2026-02-10","IPC",null,null,null,null,3231.47,146.61,null,null,2,null,null,null,null,null],["PFF022","2026-01-13","2601009D","2026-02-10","Libération",2927.93,73.92,63.38,17.69,3213.06,147.25,null,null,2,5639,98.85,null,null,null],["PFF010","2026-01-23","2601011C","2026-03-02","Libération",null,null,null,null,null,null,null,102.7,8,751.4,100,null,null,null],["PFF010","2026-01-26","2601012C","2026-03-02","Libération",null,null,null,null,null,null,null,101.5,8,751.4,100,null,null,null],["PFF009","2026-01-22","2601018D","2026-03-02","IPC",null,null,null,null,407.95,null,null,790.35,8.2,null,null,null,null,null],["PFF009","2026-01-22","2601018D","2026-03-02","Libération",1178.79,null,null,null,407.02,null,null,789.5,8.1,10636.8,98.67,null,null,null]];
+const REF_RAW=[["PFF001","ARWACIDE K+ 2 Ca++ 1,25  Solution concentrée pour Hémodialyse","Solution Dialyse Acide",2946.4,73.66,46.04,18.42,3148.97,147.32,null,null,null,97.5],["PFF002","ARWACIDE K+ 2 Ca++ 1,25 Solution concentrée Glucosée pour Hémodialyse","Solution Dialyse Acide",2946.4,73.66,46.04,18.42,3148.97,147.32,204.41,null,null,97.5],["PFF003","ARWACIDE K+ 2 Ca++ 1,5 Solution concentrée Glucosée pour Hémodialyse","Solution Dialyse Acide",2946.4,73.66,55.25,18.42,3167.8,147.32,204.41,null,null,97.5],["PFF004","ARWACIDE K+ 3 Ca++ 1,5  Solution concentrée pour Hémodialyse","Solution Dialyse Acide",2946.4,110.49,55.25,18.42,3204.21,147.32,null,null,null,97.5],["PFF005","ARWACIDE K+ 2 Ca++ 1,5 Solution concentrée Glucosée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,70,52.5,17.5,3815,105,194.25,null,null,97.5],["PFF006","ARWACIDE K+ 3 Ca++ 1,5  Solution concentrée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,105,52.5,17.5,3850,105,null,null,null,97.5],["PFF007","ARWACIDE K+ 3 Ca++ 1,75  Solution concentrée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,105,61.25,17.5,3867.5,105,null,null,null,97.5],["PFF008","ARWACIDE K+ 3 Ca++ 1,75  Solution concentrée Glucosée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,105,61.25,17.5,3867.5,105,194.25,null,null,97.5],["PFF009","BICARWA Solution concentrée alcaline pour Hémodialyse 10L","Solution Dialyse Bicarbonate",1187.67,null,null,null,402.6,null,null,785.07,null,97.5],["PFF010","BICARWA Poudre Cart 750g","Cartouche",null,null,null,null,null,null,null,100,null,97.5],["PFF011","NACL 0,9 % ARWAMEDIC Sol Inj  Poche 250ml","Poches stériles Chlorures",null,null,null,null,null,null,null,null,0.9,97.5],["PFF012","NACL 0,9 % ARWAMEDIC Sol Inj  Poche 500ml","Poches stériles Chlorures",null,null,null,null,null,null,null,null,0.9,97.5],["PFF013","NACL 0,9 % ARWAMEDIC Sol Inj  Poche 1000ml","Poches stériles Chlorures",null,null,null,null,null,null,null,null,0.9,97.5],["PFF014","NACL 0,9 % ARWAMEDIC Sol Inj  Poche 2000ml","Poches stériles Chlorures",null,null,null,null,null,null,null,null,0.9,97.5],["PFF015","NACL 0,9 % ARWAMEDIC Sol Inj  Poche 3000ml","Poches stériles Chlorures",null,null,null,null,null,null,null,null,0.9,97.5],["PFF016","GLUCOSE 5% ARWAMEDIC Sol Inj  Poche 250ml","Poches stériles Glucose",null,null,null,null,null,null,5,null,null,97.5],["PFF017","GLUCOSE 5% ARWAMEDIC Sol Inj  Poche 500ml","Poches stériles Glucose",null,null,null,null,null,null,5,null,null,97.5],["PFF018","ARWACIDE K+ 3 Ca++ 1,25  Solution concentrée pour Hémodialyse","Solution Dialyse Acide",2946.4,110.49,46.04,18.42,3185.8,147.32,null,null,null,97.5],["PFF019","ARWACIDE K+ 3 Ca++ 1,25  Solution concentrée Glucosée pour Hémodialyse","Solution Dialyse Acide",2946.4,110.49,46.04,18.42,3185.8,147.32,204.41,null,null,97.5],["PFF020","ARWACIDE K+ 2 Ca++ 1,5  Solution concentrée pour Hémodialyse","Solution Dialyse Acide",2946.4,73.66,55.25,18.42,3167.8,147.32,null,null,null,97.5],["PFF021","ARWACIDE K+ 3 Ca++ 1,5  Solution concentrée Glucosée pour Hémodialyse","Solution Dialyse Acide",2946.4,110.49,55.25,18.42,3204.21,147.32,204.41,null,null,97.5],["PFF022","ARWACIDE K+ 2 Ca++ 1,75  Solution concentrée pour Hémodialyse","Solution Dialyse Acide",2946.4,73.66,64.45,18.42,3185.8,147.32,null,null,null,97.5],["PFF023","ARWACIDE K+ 2 Ca++ 1,75  Solution concentrée Glucosée pour Hémodialyse","Solution Dialyse Acide",2946.4,73.66,64.45,18.42,3185.8,147.32,204.41,null,null,97.5],["PFF024","ARWACIDE K+ 3 Ca++ 1,75  Solution concentrée pour Hémodialyse","Solution Dialyse Acide",2946.4,110.49,64.45,18.42,3222.63,147.32,null,null,null,97.5],["PFF025","ARWACIDE K+ 3 Ca++ 1,75  Solution concentrée Glucosée pour Hémodialyse","Solution Dialyse Acide",2946.4,110.49,64.45,18.42,3222.63,147.32,204.41,null,null,97.5],["PFF026","ARWACIDE K+ 2 Ca++ 1,25  Solution concentrée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3535,70,43.75,17.5,3727.5,105,null,null,null,97.5],["PFF027","ARWACIDE K+ 2 Ca++ 1,25  Solution concentrée Glucosée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3535,70,43.75,17.5,3727.5,105,194.25,null,null,97.5],["PFF028","ARWACIDE K+ 3 Ca++ 1,25  Solution concentrée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3535,105,43.75,17.5,3762.5,105,null,null,null,97.5],["PFF029","ARWACIDE K+ 3 Ca++ 1,25  Solution concentrée Glucosée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3535,105,43.75,17.5,3762.5,105,194.25,null,null,97.5],["PFF030","ARWACIDE K+ 2 Ca++ 1,5  Solution concentrée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,70,52.5,17.5,3815,105,null,null,null,97.5],["PFF031","ARWACIDE K+ 3 Ca++ 1,5  Solution concentrée Glucosée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,105,52.5,17.5,3850,105,194.25,null,null,97.5],["PFF032","ARWACIDE K+ 2 Ca++ 1,75  Solution concentrée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,70,61.25,17.5,3832.5,105,null,null,null,97.5],["PFF033","ARWACIDE K+ 2 Ca++ 1,75  Solution concentrée Glucosée pour Hémodialyse pour Cartouche","Solution Dialyse Acide",3605,70,61.25,17.5,3832.5,105,194.25,null,null,97.5],["PFF034","BICARWA 39/39 Solution concentrée alcaline pour Hémodialyse 10L","Solution Dialyse Bicarbonate",1021.8,null,null,null,null,null,null,1021.8,null,97.5]];
+
+// ═══════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════
+const BD_COLS = ["Code","DateFab","Lot","DateLib","Statut","Sodium","Potassium","Calcium","Magnésium","Chlorures","Acétates","Glucose","Bicarbonates","pH","Poids","Rendement","Chlorure de sodium","Osmolalité","HMF"];
+const REF_COLS = ["Code","Désignation","Type","Sodium","Potassium","Calcium","Magnésium","Chlorures","Acétates","Glucose","Bicarbonates","Chlorure de sodium","Rendement"];
+
+const PARAMS_BY_TYPE = {
+  "Solution Dialyse Acide":["Sodium","Potassium","Calcium","Magnésium","Chlorures","Acétates","Glucose","pH","Poids","Rendement"],
+  "Solution Dialyse Bicarbonate":["Sodium","Chlorures","Bicarbonates","pH","Poids","Rendement"],
+  "Cartouche":["Bicarbonates","pH","Poids","Rendement"],
+  "Poches stériles Chlorures":["pH","Poids","Rendement","Chlorure de sodium","Osmolalité"],
+  "Poches stériles Glucose":["Glucose","pH","Poids","Rendement","Osmolalité"],
+};
+
+const PARAM_TOLERANCE = {
+  "Sodium":2.5,"Potassium":5,"Calcium":5,"Magnésium":5,"Chlorures":5,
+  "Acétates":5,"Glucose":5,"Bicarbonates":5,"Chlorure de sodium":5,"Rendement":2.5,
+};
+
+// Unités par paramètre — dépend du type de produit pour certains
+// getUnit(param, type) → string
+function getUnit(param, type) {
+  if (param === "Poids")       return "g";
+  if (param === "Osmolalité")  return "mOsm/kg";
+  if (param === "Rendement")   return "%";
+  if (param === "pH")          return "";
+  if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return "%";
+  // Sodium dans les poches stériles → %
+  if (param === "Sodium" && (type === "Poches stériles Chlorures" || type === "Poches stériles Glucose")) return "%";
+  // Chlorure de sodium (poches) → %
+  if (param === "Chlorure de sodium") return "%";
+  // Glucose dans les poches → %
+  if (param === "Glucose" && (type === "Poches stériles Glucose")) return "%";
+  // Bicarbonates dans les cartouches → %
+  if (param === "Bicarbonates" && type === "Cartouche") return "%";
+  // Tous les autres dosages → mmol/L
+  if (["Sodium","Potassium","Calcium","Magnésium","Chlorures","Acétates","Glucose","Bicarbonates"].includes(param)) return "mmol/L";
+  return "";
+}
+
+// Parse BD_RAW into objects
+const BD_BASE = BD_RAW.map(r => {
+  const o = {};
+  BD_COLS.forEach((c,i) => o[c] = r[i]);
+  return o;
+});
+
+// Parse REF_RAW — user can add/edit/delete products
+let REF_DATA = REF_RAW.map(r => {
+  const o = {};
+  REF_COLS.forEach((c,i) => o[c] = r[i] ?? null);
+  return o;
+});
+
+let savedLots = [];
+let mainChart = null;
+let editingCode = null; // for modal
+
+// ═══════════════════════════════════════════════════
+// FIXED LIMITS — éditable par l'utilisateur
+// Structure: { "TypeProduit": { "Paramètre": [lsi, lss] } }
+// ═══════════════════════════════════════════════════
+let FIXED_LIMITS = {
+  pH: {
+    "Solution Dialyse Acide":       [2.4,  2.8],
+    "Solution Dialyse Bicarbonate": [7.0,  7.6],
+    "Poches stériles Chlorures":    [4.5,  7.0],
+    "Poches stériles Glucose":      [4.0,  6.0],
+    "Cartouche":                    [8.2,  9.0],
+  },
+  Poids: {
+    "Solution Dialyse Acide":       [5700, 6200],
+    "Solution Dialyse Bicarbonate": [1000, 1200],
+    "Cartouche":                    [730,  770],
+    "Poches stériles Chlorures":    [480,  520],
+    "Poches stériles Glucose":      [480,  520],
+  },
+  Osmolalité: {
+    "Poches stériles Chlorures":    [270,  310],
+    "Poches stériles Glucose":      [260,  320],
+  },
+};
+
+// ═══════════════════════════════════════════════════
+// LIMITS (VBA logic — lit depuis FIXED_LIMITS)
+// ═══════════════════════════════════════════════════
+function getLimits(param, spec, type) {
+  if (param === "pH" || param === "Poids" || param === "Osmolalité") {
+    const entry = FIXED_LIMITS[param]?.[type];
+    return entry ? {lsi: entry[0], lss: entry[1]} : null;
+  }
+  if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return {lsi:0,lss:0.002};
+  if (spec === null || spec === undefined) return null;
+  const tol = (PARAM_TOLERANCE[param] ?? 5) / 100;
+  return {lsi: spec*(1-tol), lss: spec*(1+tol)};
+}
+
+// ═══════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════
+function calcStats(vals, lsi, lss) {
+  const v = vals.filter(x => x !== null && !isNaN(x));
+  if (!v.length) return null;
+  const n = v.length;
+  const mean = v.reduce((a,b)=>a+b,0)/n;
+  const std = Math.sqrt(v.reduce((a,b)=>a+Math.pow(b-mean,2),0)/(n>1?n-1:1));
+  const min = Math.min(...v), max = Math.max(...v);
+  let cp=null,cpk=null,cpi=null,cps=null;
+  if (std>0 && lsi!==null && lss!==null) {
+    cp=(lss-lsi)/(6*std); cpi=(mean-lsi)/(3*std); cps=(lss-mean)/(3*std); cpk=Math.min(cpi,cps);
+  }
+  const lci=mean-1.96*(std/Math.sqrt(n)), lcs=mean+1.96*(std/Math.sqrt(n));
+  return {n,mean,std,min,max,cp,cpk,lci,lcs};
+}
+
+function cpkInfo(cpk) {
+  if (cpk===null) return {text:"—",color:"#94a3b8"};
+  if (cpk>=1.67) return {text:"Excellente ✓",color:"#059669"};
+  if (cpk>=1.33) return {text:"Satisfaisante",color:"#22c55e"};
+  if (cpk>=1.0) return {text:"Acceptable",color:"#f59e0b"};
+  if (cpk>=0.67) return {text:"Insuffisante",color:"#f97316"};
+  return {text:"Très insuffisante !",color:"#dc2626"};
+}
+
+function fmt(v,d=4){ return (v===null||v===undefined||isNaN(v))?"—":Number(v).toFixed(d); }
+
+function allData(){ return [...BD_BASE,...savedLots]; }
+
+function getRef(code){ return REF_DATA.find(r=>r.Code===code); }
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nb').forEach(b=>{ if(b.getAttribute('onclick')===`showPage('${id}')`) b.classList.add('active'); });
+  if(id==='dashboard') renderDashboard();
+  if(id==='alertes') renderAlertes();
+  if(id==='specs') renderSpecs();
+  if(id==='analyse') { populateAnalyseDropdowns(); onFilterChange(); }
+  if(id==='saisie') populateSaisieDropdowns();
+}
+
+// ═══════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════
+function renderDashboard(){
+  const data=allData();
+  const libCount=data.filter(r=>r.Statut==="Libération").length;
+  const alerts=getAllAlerts();
+  document.getElementById('kpi-grid').innerHTML=`
+    <div class="kpi-card blue"><div class="kpi-value">${libCount}</div><div class="kpi-label">Lots libérés</div></div>
+    <div class="kpi-card purple"><div class="kpi-value">${REF_DATA.length}</div><div class="kpi-label">Produits actifs</div></div>
+    <div class="kpi-card ${alerts.length>0?'red':'green'}"><div class="kpi-value">${alerts.length}</div><div class="kpi-label">Non-conformités</div></div>
+    <div class="kpi-card blue"><div class="kpi-value">${savedLots.length}</div><div class="kpi-label">Lots saisis manuellement</div></div>
+  `;
+  const refWithLots=REF_DATA.filter(ref=>{
+    const total=data.filter(r=>r.Code===ref.Code).length;
+    return total>0;
+  });
+  document.getElementById('product-tbody').innerHTML=refWithLots.map(ref=>{
+    const lib=data.filter(r=>r.Code===ref.Code&&r.Statut==="Libération").length;
+    const nc=alerts.filter(a=>a.code===ref.Code).length;
+    return `<tr>
+      <td class="mono" style="color:var(--accent);font-weight:600">${ref.Code}</td>
+      <td>${ref.Désignation||''}</td>
+      <td><span class="badge b-purple">${ref.Type||''}</span></td>
+      <td class="tc" style="font-weight:600">${lib}</td>
+      <td class="tc">${nc>0?`<span class="badge b-red">${nc}</span>`:`<span class="badge b-green">0</span>`}</td>
+      <td class="tc" style="white-space:nowrap">
+        <button class="action-btn" onclick="goAnalyse('${ref.Code}')">Analyser</button>
+        <button class="action-btn" style="margin-left:4px;background:var(--purple-light);color:var(--purple)" onclick="openModal('${ref.Code}')">Modifier</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const prev=document.getElementById('dash-alerts-preview');
+  if(alerts.length>0){
+    const rows=alerts.slice(0,5).map(a=>`
+      <div style="background:#fff;border-radius:7px;padding:7px 13px;display:flex;gap:14px;align-items:center;font-size:12px;flex-wrap:wrap">
+        <span class="mono" style="color:var(--accent);font-weight:700">${a.code}</span>
+        <span class="mono">${a.lot}</span>
+        <span style="color:var(--text3)">${a.param}</span>
+        <span style="font-weight:700;color:var(--danger)">${fmt(a.value,3)}</span>
+        <span style="color:var(--text3);font-size:10px">[${fmt(a.lsi,2)}–${fmt(a.lss,2)}]</span>
+      </div>`).join('');
+    prev.innerHTML=`<div class="alert-card"><div class="alert-title">⚠️ Dernières non-conformités</div><div style="display:flex;flex-direction:column;gap:5px">${rows}</div>${alerts.length>5?`<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="showPage('alertes')">Voir toutes (${alerts.length}) →</button>`:''}</div>`;
+  } else {
+    prev.innerHTML=`<div style="background:var(--success-light);border:1px solid #a7f3d0;border-radius:var(--r);padding:14px 18px;font-size:13px;color:#065f46;font-weight:500">✅ Aucune non-conformité détectée.</div>`;
+  }
+}
+
+function getAllAlerts(){
+  const out=[];
+  const data=allData();
+  REF_DATA.forEach(ref=>{
+    const params=PARAMS_BY_TYPE[ref.Type]||[];
+    const rows=data.filter(r=>r.Code===ref.Code&&r.Statut==="Libération");
+    params.forEach(param=>{
+      const spec=ref[param]??null;
+      const lim=getLimits(param,spec,ref.Type);
+      if(!lim) return;
+      rows.forEach(row=>{
+        const v=row[param];
+        if(v!==null&&v!==undefined&&!isNaN(v)&&(v<lim.lsi||v>lim.lss))
+          out.push({code:ref.Code,désignation:ref.Désignation,lot:row.Lot,param,value:v,lsi:lim.lsi,lss:lim.lss,date:row.DateLib});
+      });
+    });
+  });
+  return out;
+}
+
+function goAnalyse(code){
+  document.getElementById('f-code').value=code;
+  onCodeChange();
+  showPage('analyse');
+}
+
+// ═══════════════════════════════════════════════════
+// SPECS PAGE
+// ═══════════════════════════════════════════════════
+function renderSpecs(){
+  const q=(document.getElementById('spec-search')?.value||'').toLowerCase();
+  const typeF=document.getElementById('spec-type-filter')?.value||'';
+  const filtered=REF_DATA.filter(r=>{
+    if(typeF && r.Type!==typeF) return false;
+    if(q && !r.Code.toLowerCase().includes(q) && !(r.Désignation||'').toLowerCase().includes(q) && !(r.Type||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const countEl=document.getElementById('specs-count');
+  if(countEl) countEl.textContent=`${filtered.length} produit${filtered.length>1?'s':''} affiché${filtered.length>1?'s':''}`;
+
+  const SPEC_PARAMS=["Sodium","Potassium","Calcium","Magnésium","Chlorures","Acétates","Glucose","Bicarbonates","Chlorure de sodium","Rendement"];
+
+  const html=filtered.map(ref=>{
+    const params=PARAMS_BY_TYPE[ref.Type]||[];
+    const rows=SPEC_PARAMS.map(param=>{
+      if(!params.includes(param) && param!=="Rendement") return '';
+      const spec=ref[param];
+      if(spec===null||spec===undefined) return '';
+      const tol=PARAM_TOLERANCE[param]??5;
+      const lim=getLimits(param,spec,ref.Type);
+      const lsi=lim?fmt(lim.lsi,3):'—';
+      const lss=lim?fmt(lim.lss,3):'—';
+      const special=["pH","Poids","Osmolalité"].includes(param);
+      const unit=getUnit(param,ref.Type);
+      const unitBadge=unit?`<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:4px">${unit}</span>`:'';
+      return `<tr>
+        <td style="font-weight:500">${param}${unitBadge}</td>
+        <td class="spec-val">${special?'—':fmt(spec,3)}</td>
+        <td class="tc"><span class="badge b-gray">±${tol}%</span></td>
+        <td class="spec-val" style="color:var(--danger)">${lsi}</td>
+        <td class="spec-val" style="color:var(--danger)">${lss}</td>
+      </tr>`;
+    }).filter(Boolean);
+
+    // pH, Poids, Osmolalité — hard-coded limits
+    const specials=[
+      {p:"pH",show:params.includes("pH")},
+      {p:"Poids",show:params.includes("Poids")},
+      {p:"Osmolalité",show:params.includes("Osmolalité")},
+    ];
+    const specialRows=specials.filter(s=>s.show).map(s=>{
+      const lim=getLimits(s.p,null,ref.Type);
+      if(!lim) return '';
+      const su=getUnit(s.p,ref.Type);
+      const suBadge=su?`<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:4px">${su}</span>`:'';
+      return `<tr style="background:#fafafa">
+        <td style="font-weight:500">${s.p}${suBadge} <span class="badge b-yellow" style="font-size:9px">fixe</span></td>
+        <td class="spec-na">fixé par type</td>
+        <td class="tc">—</td>
+        <td class="spec-val" style="color:var(--danger)">${fmt(lim.lsi,2)}</td>
+        <td class="spec-val" style="color:var(--danger)">${fmt(lim.lss,2)}</td>
+      </tr>`;
+    }).filter(Boolean);
+
+    return `<div class="card mb14">
+      <div class="card-header" style="background:var(--surface2)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="mono" style="color:var(--accent);font-weight:700">${ref.Code}</span>
+          <span style="font-weight:500">${ref.Désignation||''}</span>
+          <span class="badge b-purple">${ref.Type||''}</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="goAnalyse('${ref.Code}')">📈 Analyser</button>
+          <button class="btn btn-secondary btn-sm" onclick="openModal('${ref.Code}')">✏️ Modifier</button>
+        </div>
+      </div>
+      ${rows.length+specialRows.length>0?`
+      <div class="spec-table-wrap"><table class="spec-table">
+        <thead><tr><th>Paramètre</th><th>Valeur cible</th><th>Tolérance</th><th>LSI</th><th>LSS</th></tr></thead>
+        <tbody>${rows.join('')}${specialRows.join('')}</tbody>
+      </table></div>`:`<div style="padding:16px;color:var(--text3);font-size:13px;text-align:center">Aucune spécification définie</div>`}
+    </div>`;
+  }).join('');
+
+  document.getElementById('specs-content').innerHTML = filtered.length
+    ? html
+    : `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Aucun produit trouvé</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// MODAL — Add / Edit Product
+// ═══════════════════════════════════════════════════
+// Render the fixed-limits fields (pH, Poids, Osmolalité) for the selected type
+function renderFixedLimitsSection(){
+  const type = document.getElementById('m-type').value;
+  const FIXED_PARAMS = [
+    { key:'pH',       label:'pH',        applicable: Object.keys(FIXED_LIMITS.pH) },
+    { key:'Poids',    label:'Poids (g)', applicable: Object.keys(FIXED_LIMITS.Poids) },
+    { key:'Osmolalité',label:'Osmolalité (mOsm/kg)', applicable: Object.keys(FIXED_LIMITS.Osmolalité) },
+  ];
+  const sec = document.getElementById('m-fixed-limits-section');
+  const rows = FIXED_PARAMS.map(fp => {
+    if (!fp.applicable.includes(type)) return '';
+    const cur = FIXED_LIMITS[fp.key]?.[type] || [null, null];
+    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:10px">
+      <div class="pg" style="margin:0"><label style="font-weight:600">${fp.label}</label>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">Paramètre fixe par type</div>
+      </div>
+      <div class="pg" style="margin:0"><label>LSI <span style="color:var(--danger)">▼</span></label>
+        <input type="number" step="any" id="mfl-${fp.key}-lsi" value="${cur[0]??''}" placeholder="—">
+      </div>
+      <div class="pg" style="margin:0"><label>LSS <span style="color:var(--danger)">▲</span></label>
+        <input type="number" step="any" id="mfl-${fp.key}-lss" value="${cur[1]??''}" placeholder="—">
+      </div>
+    </div>`;
+  }).filter(Boolean);
+  sec.innerHTML = rows.length
+    ? rows.join('')
+    : '<div style="color:var(--text3);font-size:12px;padding:6px 0">Aucune limite fixe pour ce type de produit.</div>';
+}
+
+function getFixedNum(id){ const el=document.getElementById(id); return (!el||el.value==='')?null:parseFloat(el.value); }
+
+function openModal(code=null){
+  editingCode=code;
+  const modal=document.getElementById('modal-produit');
+  const titleEl=document.getElementById('modal-title-text');
+  const delBtn=document.getElementById('btn-delete-product');
+
+  if(code){
+    const ref=getRef(code);
+    titleEl.textContent='Modifier le produit — '+code;
+    delBtn.style.display='inline-flex';
+    document.getElementById('m-code').value=ref.Code;
+    document.getElementById('m-code').readOnly=true;
+    document.getElementById('m-desig').value=ref.Désignation||'';
+    document.getElementById('m-type').value=ref.Type||'Solution Dialyse Acide';
+    document.getElementById('m-sodium').value=ref.Sodium??'';
+    document.getElementById('m-potassium').value=ref.Potassium??'';
+    document.getElementById('m-calcium').value=ref.Calcium??'';
+    document.getElementById('m-magnesium').value=ref['Magnésium']??'';
+    document.getElementById('m-chlorures').value=ref.Chlorures??'';
+    document.getElementById('m-acetates').value=ref['Acétates']??'';
+    document.getElementById('m-glucose').value=ref.Glucose??'';
+    document.getElementById('m-bicarbonates').value=ref.Bicarbonates??'';
+    document.getElementById('m-chlorna').value=ref['Chlorure de sodium']??'';
+    document.getElementById('m-rendement').value=ref.Rendement??'';
+  } else {
+    titleEl.textContent='Ajouter un produit';
+    delBtn.style.display='none';
+    document.getElementById('m-code').readOnly=false;
+    ['m-code','m-desig','m-sodium','m-potassium','m-calcium','m-magnesium','m-chlorures','m-acetates','m-glucose','m-bicarbonates','m-chlorna'].forEach(id=>{ document.getElementById(id).value=''; });
+    document.getElementById('m-rendement').value='97.5';
+    document.getElementById('m-type').value='Solution Dialyse Acide';
+  }
+  renderFixedLimitsSection();
+  modal.classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('modal-produit').classList.remove('show');
+  editingCode=null;
+}
+
+function getNum(id){ const v=document.getElementById(id).value; return v===''?null:parseFloat(v); }
+
+function saveProduct(){
+  const code=document.getElementById('m-code').value.trim().toUpperCase();
+  const desig=document.getElementById('m-desig').value.trim();
+  const type=document.getElementById('m-type').value;
+  if(!code||!desig) { notify('Code et désignation requis','error'); return; }
+  if(!editingCode && REF_DATA.find(r=>r.Code===code)) { notify('Ce code existe déjà','error'); return; }
+
+  const obj={
+    Code:code, Désignation:desig, Type:type,
+    Sodium:getNum('m-sodium'), Potassium:getNum('m-potassium'),
+    Calcium:getNum('m-calcium'), Magnésium:getNum('m-magnesium'),
+    Chlorures:getNum('m-chlorures'), Acétates:getNum('m-acetates'),
+    Glucose:getNum('m-glucose'), Bicarbonates:getNum('m-bicarbonates'),
+    "Chlorure de sodium":getNum('m-chlorna'), Rendement:getNum('m-rendement'),
+  };
+
+  // Save fixed limits (pH, Poids, Osmolalité) — appliqués au type produit
+  ['pH','Poids','Osmolalité'].forEach(fp => {
+    const lsiEl = document.getElementById(`mfl-${fp}-lsi`);
+    const lssEl = document.getElementById(`mfl-${fp}-lss`);
+    if(!lsiEl || !lssEl) return; // pas applicable à ce type
+    const lsi = lsiEl.value==='' ? null : parseFloat(lsiEl.value);
+    const lss = lssEl.value==='' ? null : parseFloat(lssEl.value);
+    if(lsi!==null && lss!==null){
+      if(!FIXED_LIMITS[fp]) FIXED_LIMITS[fp]={};
+      FIXED_LIMITS[fp][type] = [lsi, lss];
+    }
+  });
+
+  if(editingCode){
+    const idx=REF_DATA.findIndex(r=>r.Code===editingCode);
+    if(idx>=0) REF_DATA[idx]=obj;
+    notify('Produit modifié avec succès !');
+  } else {
+    REF_DATA.push(obj);
+    notify('Produit ajouté avec succès !');
+  }
+  closeModal();
+  refreshAll();
+}
+
+function deleteProduct(){
+  if(!editingCode) return;
+  if(!confirm(`Supprimer le produit ${editingCode} ? Cette action est irréversible.`)) return;
+  REF_DATA=REF_DATA.filter(r=>r.Code!==editingCode);
+  closeModal();
+  notify(`Produit ${editingCode} supprimé`);
+  refreshAll();
+}
+
+function refreshAll(){
+  renderDashboard();
+  renderSpecs();
+  updateAlertBadge();
+  populateAnalyseDropdowns();
+  populateSaisieDropdowns();
+}
+
+// ═══════════════════════════════════════════════════
+// ANALYSE
+// ═══════════════════════════════════════════════════
+function populateAnalyseDropdowns(){
+  const sel=document.getElementById('f-code');
+  const cur=sel.value;
+  sel.innerHTML=REF_DATA.map(r=>`<option value="${r.Code}">${r.Code} — ${(r.Désignation||'').slice(0,40)}</option>`).join('');
+  if(REF_DATA.find(r=>r.Code===cur)) sel.value=cur;
+  onCodeChange();
+}
+
+function onCodeChange(){
+  const code=document.getElementById('f-code').value;
+  const ref=getRef(code);
+  const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
+  const pSel=document.getElementById('f-param');
+  const cur=pSel.value;
+  pSel.innerHTML=params.map(p=>`<option${p===cur?' selected':''}>${p}</option>`).join('');
+  onFilterChange();
+}
+
+function onFilterChange(){
+  const code=document.getElementById('f-code').value;
+  const param=document.getElementById('f-param').value;
+  const statut=document.getElementById('f-statut').value;
+  const debut=document.getElementById('f-debut').value;
+  const fin=document.getElementById('f-fin').value;
+  const ref=getRef(code);
+  const type=ref?.Type||"";
+  const spec=ref?.[param]??null;
+  const lim=getLimits(param,spec,type);
+
+  const filtered=allData().filter(r=>{
+    if(r.Code!==code) return false;
+    if(r.Statut!==statut) return false;
+    if(debut&&r.DateLib&&r.DateLib<debut) return false;
+    if(fin&&r.DateLib&&r.DateLib>fin) return false;
+    return true;
+  });
+
+  const vals=filtered.map(r=>r[param]).filter(v=>v!==null&&v!==undefined&&!isNaN(v));
+  const stats=calcStats(vals,lim?.lsi??null,lim?.lss??null);
+  const ncPts=filtered.filter(r=>{ const v=r[param]; return lim&&v!==null&&!isNaN(v)&&(v<lim.lsi||v>lim.lss); });
+
+  // Meta
+  const unit=getUnit(param,type);
+  const unitStr=unit?` ${unit}`:'';
+  document.getElementById('filter-meta').innerHTML=`
+    <span class="badge b-purple">${type}</span>
+    ${unit?`<span class="badge b-gray" style="font-family:var(--mono)">${unit}</span>`:''}
+    ${lim?`<span class="badge b-blue">LSI: ${fmt(lim.lsi,3)}${unitStr} | LSS: ${fmt(lim.lss,3)}${unitStr}</span>`:''}
+    ${spec!==null?`<span class="badge b-gray">Spec: ${spec}${unitStr}</span>`:''}
+    <span class="badge ${ncPts.length>0?'b-red':'b-green'}">${filtered.length} lots · ${ncPts.length} NC</span>
+  `;
+
+  // Stats
+  const sg=document.getElementById('stat-grid'), sg2=document.getElementById('stat-grid2');
+  if(stats){
+    const ci=cpkInfo(stats.cpk);
+    const uSuffix=unit?`<span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:2px">${unit}</span>`:'';
+    sg.innerHTML=`
+      <div class="sc"><div class="sc-label">N lots</div><div class="sc-value">${stats.n}</div></div>
+      <div class="sc"><div class="sc-label">Moyenne</div><div class="sc-value">${fmt(stats.mean,3)}${uSuffix}</div></div>
+      <div class="sc"><div class="sc-label">Écart-type σ</div><div class="sc-value">${fmt(stats.std,4)}</div></div>
+      <div class="sc"><div class="sc-label">Min</div><div class="sc-value">${fmt(stats.min,3)}${uSuffix}</div></div>
+      <div class="sc"><div class="sc-label">Max</div><div class="sc-value">${fmt(stats.max,3)}${uSuffix}</div></div>
+      <div class="sc"><div class="sc-label">Cp</div><div class="sc-value" style="color:${stats.cp>=1.33?'var(--success)':'var(--warning)'}">${fmt(stats.cp,3)}</div></div>
+      <div class="cpk-card">
+        <div class="sc-label" style="display:flex;justify-content:space-between"><span>Cpk</span><span style="color:${ci.color};font-size:10px;font-weight:600">${ci.text}</span></div>
+        <div class="sc-value" style="color:${ci.color}">${fmt(stats.cpk,3)}</div>
+        <div class="gauge-wrap"><div class="gauge-bar" style="width:${Math.min(Math.max((stats.cpk||0)/2,0),1)*100}%;background:${ci.color}"></div></div>
+        <div class="gauge-labels"><span>0</span><span>1.0</span><span>1.33</span><span>≥2.0</span></div>
+      </div>`;
+    sg2.innerHTML=`
+      ${lim?`<div class="sc"><div class="sc-label">LSI</div><div class="sc-value" style="color:var(--danger)">${fmt(lim.lsi,3)}${uSuffix}</div></div>
+             <div class="sc"><div class="sc-label">LSS</div><div class="sc-value" style="color:var(--danger)">${fmt(lim.lss,3)}${uSuffix}</div></div>`:''}
+      <div class="sc"><div class="sc-label">LCI 95%</div><div class="sc-value" style="color:var(--accent)">${fmt(stats.lci,3)}${uSuffix}</div></div>
+      <div class="sc"><div class="sc-label">LCS 95%</div><div class="sc-value" style="color:var(--accent)">${fmt(stats.lcs,3)}${uSuffix}</div></div>`;
+    const ic=document.getElementById('interp-card');
+    ic.style.display='block';
+    let txt=`<b>Cp = ${fmt(stats.cp,3)} :</b> ${stats.cp>=1.67?'Excellente':stats.cp>=1.33?'Satisfaisante':stats.cp>=1?'Acceptable':'Insuffisante'}. `;
+    txt+=`<b>Cpk = ${fmt(stats.cpk,3)} :</b> ${Math.abs((stats.cpk||0)-(stats.cp||0))<0.15?'Processus bien centré.':'Centrage à corriger.'}`;
+    if(ncPts.length>0) txt+=` <span style="color:var(--danger);font-weight:600">⚠️ ${ncPts.length} lot(s) hors spécification.</span>`;
+    document.getElementById('interp-text').innerHTML=txt;
+  } else { sg.innerHTML=''; sg2.innerHTML=''; document.getElementById('interp-card').style.display='none'; }
+
+  // Chart
+  document.getElementById('chart-title-text').textContent=`Carte de contrôle — ${param}${unit?' ('+unit+')':''} · ${code}`;
+  document.getElementById('chart-nc-badge').innerHTML=ncPts.length>0?`<span class="badge b-red">⚠️ ${ncPts.length} hors limites</span>`:'';
+  const chartPts=filtered.filter(r=>r[param]!==null&&r[param]!==undefined&&!isNaN(r[param]));
+  renderChart(chartPts,param,lim,stats);
+
+  // Table
+  const tbody=document.getElementById('lots-tbody');
+  if(!chartPts.length){tbody.innerHTML=`<tr><td colspan="4" class="tc" style="padding:28px;color:var(--text3)">Aucune donnée</td></tr>`;return;}
+  tbody.innerHTML=chartPts.map(r=>{
+    const v=r[param]; const nc=lim&&(v<lim.lsi||v>lim.lss);
+    return `<tr class="${nc?'nc-row':''}">
+      <td class="mono">${r.Lot}</td>
+      <td style="color:var(--text3)">${r.DateLib||'—'}</td>
+      <td class="tr mono" style="font-weight:600;color:${nc?'var(--danger)':'var(--text)'}">${fmt(v,4)}${nc?' ⚠️':''}</td>
+      <td class="tc"><span class="badge ${nc?'b-red':'b-green'}">${nc?'NC':'C'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderChart(pts,param,lim,stats){
+  const ctx=document.getElementById('mainChart');
+  if(mainChart){mainChart.destroy();mainChart=null;}
+  if(!pts.length) return;
+  const labels=pts.map((r,i)=>r.Lot||`#${i+1}`);
+  const values=pts.map(r=>r[param]);
+  const pColors=values.map(v=>lim&&(v<lim.lsi||v>lim.lss)?'#dc2626':'#0369a1');
+
+  // Compute y-axis bounds so LSI/LSS are always visible — add 5% padding
+  let yMin=undefined, yMax=undefined;
+  if(lim){
+    const allVals=[...values, lim.lsi, lim.lss].filter(v=>v!==null&&!isNaN(v));
+    const dataMin=Math.min(...allVals), dataMax=Math.max(...allVals);
+    const pad=(dataMax-dataMin)*0.08 || Math.abs(dataMin)*0.05 || 1;
+    yMin=dataMin-pad;
+    yMax=dataMax+pad;
+  }
+
+  mainChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:param,data:values,borderColor:'#0369a1',backgroundColor:'rgba(3,105,161,.07)',pointBackgroundColor:pColors,pointBorderColor:pColors,pointRadius:values.map(v=>lim&&(v<lim.lsi||v>lim.lss)?7:3.5),pointHoverRadius:8,borderWidth:2,tension:.25,fill:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',titleColor:'#0f172a',bodyColor:'#475569',borderColor:'#e2e8f0',borderWidth:1,callbacks:{label:c=>`  ${param}: ${fmt(c.raw,4)}${unit?' '+unit:''}${lim&&(c.raw<lim.lsi||c.raw>lim.lss)?' ⚠️ NC':''}`}}},
+      scales:{
+        x:{ticks:{maxTicksLimit:14,font:{size:10},color:'#94a3b8'},grid:{color:'#f1f5f9'}},
+        y:{min:yMin, max:yMax, ticks:{font:{size:10},color:'#94a3b8'},grid:{color:'#f1f5f9'}}
+      }
+    },
+    plugins:[{id:'rl',afterDraw(chart){
+      const{ctx:c,chartArea:{left,right,top,bottom},scales:{y}}=chart;
+      c.save();
+      const dl=(val,color,dash,lbl,side='right')=>{
+        if(val===null||val===undefined||isNaN(val)) return;
+        const yp=y.getPixelForValue(val);
+        // Clamp label inside chart area
+        const lyp=Math.max(top+10, Math.min(bottom-4, yp));
+        c.beginPath();c.setLineDash(dash);c.strokeStyle=color;c.lineWidth=1.5;
+        c.moveTo(left,yp);c.lineTo(right,yp);c.stroke();
+        c.setLineDash([]);c.fillStyle=color;c.font='600 10px DM Sans';
+        c.textAlign= side==='left'?'left':'right';
+        c.fillText(lbl, side==='left'?left+4:right-3, lyp-3);
+      };
+      // LSI/LSS always drawn — use left side to avoid overlap
+      if(lim){
+        dl(lim.lss,'#dc2626',[6,3],'LSS ▲','right');
+        dl(lim.lsi,'#dc2626',[6,3],'LSI ▼','left');
+      }
+      if(stats){
+        dl(stats.mean,'#059669',[4,2],'Moy','right');
+        dl(stats.lcs,'#0369a1',[2,2],'LCS','right');
+        dl(stats.lci,'#0369a1',[2,2],'LCI','left');
+      }
+      c.restore();
+    }}]
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// SAISIE
+// ═══════════════════════════════════════════════════
+function populateSaisieDropdowns(){
+  const sel=document.getElementById('s-code');
+  const cur=sel.value;
+  sel.innerHTML=REF_DATA.map(r=>`<option value="${r.Code}">${r.Code} — ${(r.Désignation||'').slice(0,40)}</option>`).join('');
+  if(REF_DATA.find(r=>r.Code===cur)) sel.value=cur;
+  onSaisieProductChange();
+}
+
+function onSaisieProductChange(){
+  const code=document.getElementById('s-code').value;
+  const ref=getRef(code);
+  const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
+  document.getElementById('param-inputs').innerHTML=params.map(p=>{
+    const spec=ref?.[p]??null;
+    const lim=getLimits(p,spec,ref?.Type||"");
+    const pu=getUnit(p,ref?.Type||"");
+    const hint=lim?`[${fmt(lim.lsi,2)} – ${fmt(lim.lss,2)}${pu?' '+pu:''}]`:'';
+    return `<div class="pg">
+      <label>${p}${pu?` <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">${pu}</span>`:''} <span class="hint">${hint}</span></label>
+      <input type="number" step="any" id="sv-${p.replace(/\s+/g,'_')}" placeholder="—" oninput="checkNC('${p}',${spec},'${ref?.Type||''}')">
+      <div class="nc-hint" id="nh-${p.replace(/\s+/g,'_')}"></div>
+    </div>`;
+  }).join('');
+}
+
+function checkNC(param,spec,type){
+  const id=param.replace(/\s+/g,'_');
+  const inp=document.getElementById(`sv-${id}`);
+  const hint=document.getElementById(`nh-${id}`);
+  const v=parseFloat(inp.value);
+  const lim=getLimits(param,isNaN(spec)?null:spec,type);
+  if(!inp.value||!lim){inp.classList.remove('input-nc');hint.textContent='';return;}
+  if(v<lim.lsi||v>lim.lss){inp.classList.add('input-nc');hint.textContent='⚠️ Hors spécification';}
+  else{inp.classList.remove('input-nc');hint.textContent='';}
+}
+
+function saveLot(){
+  const code=document.getElementById('s-code').value;
+  const lot=document.getElementById('s-lot').value.trim();
+  if(!lot){notify('N° de lot requis','error');return;}
+  const ref=getRef(code);
+  const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
+  const row={Code:code,DateFab:document.getElementById('s-fab').value,Lot:lot,DateLib:document.getElementById('s-lib').value,Statut:document.getElementById('s-statut').value,Type:ref?.Type||""};
+  params.forEach(p=>{
+    const id=p.replace(/\s+/g,'_');
+    const v=document.getElementById(`sv-${id}`)?.value;
+    row[p]=v===''||v===undefined?null:parseFloat(v);
+  });
+  savedLots.push(row);
+  renderSavedLots();
+  resetForm();
+  notify('Lot enregistré !');
+  updateAlertBadge();
+}
+
+function resetForm(){
+  document.getElementById('s-lot').value='';
+  document.getElementById('s-fab').value='';
+  document.getElementById('s-lib').value='';
+  const code=document.getElementById('s-code').value;
+  const ref=getRef(code);
+  const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
+  params.forEach(p=>{
+    const el=document.getElementById(`sv-${p.replace(/\s+/g,'_')}`);
+    if(el){el.value='';el.classList.remove('input-nc');}
+  });
+}
+
+function renderSavedLots(){
+  const sec=document.getElementById('saved-lots-section');
+  if(!savedLots.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  document.getElementById('saved-lots-header').textContent=`Lots saisis manuellement (${savedLots.length})`;
+  document.getElementById('saved-tbody').innerHTML=savedLots.map(l=>`<tr>
+    <td class="mono" style="color:var(--accent);font-weight:600">${l.Code}</td>
+    <td class="mono">${l.Lot}</td>
+    <td style="color:var(--text3)">${l.DateFab||'—'}</td>
+    <td style="color:var(--text3)">${l.DateLib||'—'}</td>
+    <td><span class="badge ${l.Statut==='Libération'?'b-green':'b-blue'}">${l.Statut}</span></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// ALERTES
+// ═══════════════════════════════════════════════════
+function renderAlertes(){
+  const alerts=getAllAlerts();
+  document.getElementById('alertes-badge').innerHTML=alerts.length>0?`<span class="badge b-red">${alerts.length} non-conformité(s)</span>`:'';
+  const cont=document.getElementById('alertes-content');
+  if(!alerts.length){
+    cont.innerHTML=`<div class="empty"><div class="empty-icon">✅</div><div class="empty-text" style="color:var(--success);font-weight:600;font-size:15px">Aucune non-conformité</div><p style="margin-top:6px;font-size:13px">Tous les paramètres sont dans les limites.</p></div>`;
+    return;
+  }
+  cont.innerHTML=`<div class="card"><div class="tw"><table>
+    <thead><tr><th>Code</th><th>Lot</th><th>Date</th><th>Paramètre</th><th class="tr">Valeur</th><th class="tr">LSI</th><th class="tr">LSS</th><th class="tc">Écart</th><th class="tc">Action</th></tr></thead>
+    <tbody>${alerts.map(a=>{
+      const e=a.value<a.lsi?((a.value-a.lsi)/a.lsi*100):((a.value-a.lss)/a.lss*100);
+      return `<tr>
+        <td class="mono" style="color:var(--accent);font-weight:700">${a.code}</td>
+        <td class="mono">${a.lot}</td>
+        <td style="color:var(--text3);font-size:11px">${a.date||'—'}</td>
+        <td>${a.param}</td>
+        <td class="tr mono" style="font-weight:700;color:var(--danger)">${fmt(a.value,3)}</td>
+        <td class="tr" style="color:var(--text3);font-size:11px">${fmt(a.lsi,3)}</td>
+        <td class="tr" style="color:var(--text3);font-size:11px">${fmt(a.lss,3)}</td>
+        <td class="tc"><span class="badge b-red">${e>0?'+':''}${e.toFixed(2)}%</span></td>
+        <td class="tc"><button class="action-btn" onclick="goAnalyse('${a.code}')">Analyser →</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div></div>`;
+}
+
+function updateAlertBadge(){
+  const n=getAllAlerts().length;
+  document.getElementById('nav-alertes').innerHTML=`🔔 <span class="nl">Alertes</span>${n>0?`<span class="nav-badge">${n}</span>`:''}`;
+}
+
+// ═══════════════════════════════════════════════════
+// NOTIFICATION
+// ═══════════════════════════════════════════════════
+function notify(msg,type='success'){
+  const el=document.getElementById('notification');
+  el.textContent=msg;el.className=`show ${type}`;
+  setTimeout(()=>el.className='',3000);
+}
+
+// Close modal on overlay click
+document.getElementById('modal-produit').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeModal(); });
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  populateAnalyseDropdowns();
+  populateSaisieDropdowns();
+  renderDashboard();
+  updateAlertBadge();
+});
+</script>
+</body>
+</html>
