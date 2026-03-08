@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contrôle Qualité — Production</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--accent:#0369a1;--accent-light:#e0f2fe;--accent-dark:#075985;--success:#059669;--success-light:#d1fae5;--warning:#d97706;--warning-light:#fef3c7;--danger:#dc2626;--danger-light:#fee2e2;--purple:#7c3aed;--purple-light:#ede9fe;--mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--r:10px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shm:0 4px 12px rgba(0,0,0,.10)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -117,10 +118,25 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 .search-bar input{padding-left:30px}
 .search-bar::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;pointer-events:none}
 @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.sg{grid-template-columns:repeat(3,1fr)}.sg2{grid-template-columns:repeat(2,1fr)}.filter-row{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}.param-grid{grid-template-columns:1fr 1fr}}
+
+/* ── USER BADGE (header) ─────────────────────────────────────────────── */
+.user-avatar {
+  width:30px; height:30px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#fff; flex-shrink:0;
+  background:var(--accent);
+}
+.header-user {
+  display:flex; align-items:center; gap:8px; cursor:pointer;
+  padding:5px 10px; border-radius:7px; transition:background .15s;
+}
+.header-user:hover { background:var(--surface2); }
 </style>
 </head>
 <body>
 <div id="notification"></div>
+
+
 
 <!-- MODAL produit -->
 <div class="modal-overlay" id="modal-produit">
@@ -162,7 +178,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
   <div style="margin-top:18px;display:flex;gap:10px">
     <button class="btn btn-primary" onclick="saveProduct()">💾 Enregistrer</button>
     <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
-    <button class="btn btn-danger" id="btn-delete-product" style="margin-left:auto;display:none" onclick="deleteProduct()">🗑 Supprimer</button>
+    <button class="btn btn-danger admin-only" id="btn-delete-product" style="margin-left:auto;display:none" onclick="deleteProduct()">🗑 Supprimer</button>
   </div>
 </div>
 </div>
@@ -182,9 +198,23 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     <button class="nb" onclick="showPage('saisie')">✏️ <span class="nl">Saisie</span></button>
     <button class="nb" id="nav-alertes" onclick="showPage('alertes')">🔔 <span class="nl">Alertes</span></button>
   </nav>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div style="text-align:right;line-height:1.3">
+      <div style="font-size:12px;font-weight:600" id="header-username">—</div>
+      <div style="font-size:10px" id="header-role">—</div>
+    </div>
+    <div class="user-avatar" id="header-avatar">?</div>
+    <button class="nb btn-secondary" style="font-size:11px;padding:5px 10px" onclick="doLogout()" title="Se déconnecter">⎋</button>
+  </div>
 </header>
 
 <main>
+
+<!-- ROLE NOTICE -->
+<div id="role-notice" style="display:none;background:var(--warning-light);border:1px solid #fcd34d;border-radius:var(--r);padding:10px 16px;margin-bottom:16px;align-items:center;gap:10px;font-size:13px;color:#92400e">
+  <span style="font-size:16px">🔒</span>
+  <span><b>Mode collaborateur</b> — La consultation et la saisie de lots sont disponibles. La gestion des produits et spécifications est réservée aux administrateurs.</span>
+</div>
 
 <!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
@@ -192,7 +222,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
   <div class="kpi-grid" id="kpi-grid"></div>
   <div class="card mb18">
     <div class="card-header">Résumé par produit
-      <button class="btn btn-primary btn-sm" onclick="openModal()">+ Ajouter un produit</button>
+      <button class="btn btn-primary btn-sm admin-only" onclick="openModal()">+ Ajouter un produit</button>
     </div>
     <div class="tw"><table id="product-table">
       <thead><tr><th>Code</th><th>Désignation</th><th>Type</th><th class="tc">Lots lib.</th><th class="tc">NC</th><th class="tc">Actions</th></tr></thead>
@@ -238,7 +268,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 <div class="page" id="page-specs">
   <div class="flex-between mb18">
     <h2 style="margin:0">Spécifications des produits</h2>
-    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Ajouter un produit</button>
+    <button class="btn btn-primary btn-sm admin-only" onclick="openModal()">+ Ajouter un produit</button>
   </div>
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
     <div class="search-bar" style="width:220px"><input type="text" id="spec-search" placeholder="Rechercher..." oninput="renderSpecs()"></div>
@@ -471,7 +501,7 @@ function renderDashboard(){
       <td class="tc">${nc>0?`<span class="badge b-red">${nc}</span>`:`<span class="badge b-green">0</span>`}</td>
       <td class="tc" style="white-space:nowrap">
         <button class="action-btn" onclick="goAnalyse('${ref.Code}')">Analyser</button>
-        <button class="action-btn" style="margin-left:4px;background:var(--purple-light);color:var(--purple)" onclick="openModal('${ref.Code}')">Modifier</button>
+        <button class="action-btn admin-only" style="margin-left:4px;background:var(--purple-light);color:var(--purple)" onclick="openModal('${ref.Code}')">Modifier</button>
       </td>
     </tr>`;
   }).join('');
@@ -585,7 +615,7 @@ function renderSpecs(){
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-secondary btn-sm" onclick="goAnalyse('${ref.Code}')">📈 Analyser</button>
-          <button class="btn btn-secondary btn-sm" onclick="openModal('${ref.Code}')">✏️ Modifier</button>
+          <button class="btn btn-secondary btn-sm admin-only" onclick="openModal('${ref.Code}')">✏️ Modifier</button>
         </div>
       </div>
       ${rows.length+specialRows.length>0?`
@@ -636,6 +666,7 @@ function renderFixedLimitsSection(){
 function getFixedNum(id){ const el=document.getElementById(id); return (!el||el.value==='')?null:parseFloat(el.value); }
 
 function openModal(code=null){
+  if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
   editingCode=code;
   const modal=document.getElementById('modal-produit');
   const titleEl=document.getElementById('modal-title-text');
@@ -679,6 +710,7 @@ function closeModal(){
 function getNum(id){ const v=document.getElementById(id).value; return v===''?null:parseFloat(v); }
 
 function saveProduct(){
+  if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
   const code=document.getElementById('m-code').value.trim().toUpperCase();
   const desig=document.getElementById('m-desig').value.trim();
   const type=document.getElementById('m-type').value;
@@ -720,6 +752,7 @@ function saveProduct(){
 }
 
 function deleteProduct(){
+  if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
   if(!editingCode) return;
   if(!confirm(`Supprimer le produit ${editingCode} ? Cette action est irréversible.`)) return;
   REF_DATA=REF_DATA.filter(r=>r.Code!==editingCode);
@@ -1036,7 +1069,102 @@ document.getElementById('modal-produit').addEventListener('click',e=>{ if(e.targ
 // ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════
+// NETLIFY IDENTITY AUTH + RÔLES
+// ═══════════════════════════════════════════════════
+let currentUser = null;
+
+function initNetlifyAuth(){
+  const identity = window.netlifyIdentity;
+  if(!identity){
+    // Mode dev local — simuler un admin
+    console.warn('Netlify Identity non chargé — mode développement');
+    const devUser = {email:'dev@local', user_metadata:{full_name:'Mode Dev'}, app_metadata:{roles:['admin']}};
+    currentUser = devUser;
+    updateHeaderUser(devUser);
+    applyRoleUI();
+    return;
+  }
+
+  identity.init();
+
+  const user = identity.currentUser();
+  if(user){
+    currentUser = user;
+    updateHeaderUser(user);
+    applyRoleUI();
+  } else {
+    identity.open();
+  }
+
+  identity.on('login', user => {
+    identity.close();
+    currentUser = user;
+    updateHeaderUser(user);
+    applyRoleUI();
+    notify(`Bienvenue, ${getUserName(user)} !`);
+  });
+
+  identity.on('logout', () => {
+    currentUser = null;
+    applyRoleUI();
+    identity.open();
+  });
+
+  identity.on('error', err => console.error('Netlify Identity error:', err));
+}
+
+function getUserName(user){
+  return user?.user_metadata?.full_name || user?.email || '?';
+}
+
+function getUserInitials(user){
+  const name = getUserName(user);
+  return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+// Retourne true si l'utilisateur connecté est admin
+function isAdmin(){
+  if(!currentUser) return false;
+  const roles = currentUser?.app_metadata?.roles || [];
+  return roles.includes('admin');
+}
+
+function updateHeaderUser(user){
+  const initials = getUserInitials(user);
+  const avatarEl = document.getElementById('header-avatar');
+  const nameEl   = document.getElementById('header-username');
+  const roleEl   = document.getElementById('header-role');
+  if(avatarEl){ avatarEl.textContent = initials; }
+  if(nameEl)  { nameEl.textContent   = getUserName(user); }
+  if(roleEl)  { 
+    const admin = isAdmin();
+    roleEl.textContent   = admin ? 'Administrateur' : 'Collaborateur';
+    roleEl.style.color   = admin ? 'var(--accent)' : 'var(--text3)';
+  }
+}
+
+// Applique les restrictions visuelles selon le rôle
+function applyRoleUI(){
+  const admin = isAdmin();
+  // Tous les éléments réservés aux admins
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = admin ? '' : 'none';
+  });
+  // Message rôle dans les pages protégées
+  const notice = document.getElementById('role-notice');
+  if(notice) notice.style.display = admin ? 'none' : 'flex';
+}
+
+function doLogout(){
+  const identity = window.netlifyIdentity;
+  if(identity){ identity.logout(); }
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
+  initNetlifyAuth();
   populateAnalyseDropdowns();
   populateSaisieDropdowns();
   renderDashboard();
