@@ -1353,9 +1353,16 @@ let editingLogin = null; // utilisateur en cours d'édition dans le modal
 
 // ── Charge les utilisateurs depuis Supabase ──
 async function loadUsers(){
-  const rows = await sbGet('utilisateurs');
-  if(rows.length===0) return [...DEFAULT_USERS];
-  return rows.map(r=>({login:r.login, hash:r.hash, nom:r.nom, role:r.role}));
+  try {
+    // Timeout 5s — si Supabase ne répond pas, utiliser les utilisateurs par défaut
+    const timeout = new Promise((_,reject) => setTimeout(()=>reject(new Error('timeout')), 5000));
+    const rows = await Promise.race([sbGet('utilisateurs'), timeout]);
+    if(!rows || rows.length===0) return [...DEFAULT_USERS];
+    return rows.map(r=>({login:r.login, hash:r.hash, nom:r.nom, role:r.role, email:r.email||''}));
+  } catch(e) {
+    console.warn('loadUsers: Supabase inaccessible, utilisation des utilisateurs par défaut', e);
+    return [...DEFAULT_USERS];
+  }
 }
 // saveUsers non utilisé — chaque op fait son propre upsert/delete
 
@@ -1371,9 +1378,13 @@ async function doLogin(){
   const pwd   = document.getElementById('l-pwd').value;
   const err   = document.getElementById('lerr');
   if(!login||!pwd){ err.style.display='block'; err.textContent='Remplissez tous les champs.'; return; }
-  err.style.display='block'; err.textContent='Vérification...'; err.style.color='var(--text3)';
+  err.style.display='block'; err.textContent='⏳ Connexion en cours...'; err.style.color='var(--text3)';
+  // Disable button during login
+  const loginBtn = document.querySelector('.lbtn');
+  if(loginBtn){ loginBtn.disabled=true; loginBtn.textContent='Connexion...'; }
   const hash  = await sha256(pwd);
   const users = await loadUsers();
+  if(loginBtn){ loginBtn.disabled=false; loginBtn.textContent='Se connecter →'; }
   const user  = users.find(u => u.login===login && u.hash===hash);
   if(!user){
     err.style.display='block';
@@ -1638,9 +1649,15 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 async function loadAllFromSupabase(){
   savedLots = []; // reset pour éviter doublons
-  await loadLotsFromSupabase();
-  await loadProduitsFromSupabase();
-  await loadLimitesFromSupabase();
+  try {
+    const timeout = new Promise((_,reject) => setTimeout(()=>reject(new Error('timeout')), 8000));
+    await Promise.race([
+      Promise.all([loadLotsFromSupabase(), loadProduitsFromSupabase(), loadLimitesFromSupabase()]),
+      timeout
+    ]);
+  } catch(e) {
+    console.warn('loadAllFromSupabase: Supabase inaccessible ou timeout —  données embarquées utilisées', e);
+  }
 }
 
 async function loadProduitsFromSupabase(){
