@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contrôle Qualité — Production</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -775,15 +776,18 @@ function saveProduct(){
     if(lsi!==null && lss!==null){
       if(!FIXED_LIMITS[fp]) FIXED_LIMITS[fp]={};
       FIXED_LIMITS[fp][type] = [lsi, lss];
+      sbUpsert('limites_fixes',{parametre:fp,type_produit:type,lsi,lss,updated_at:new Date().toISOString()},'parametre,type_produit').catch(()=>{});
     }
   });
 
   if(editingCode){
     const idx=REF_DATA.findIndex(r=>r.Code===editingCode);
     if(idx>=0) REF_DATA[idx]=obj;
+    sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()},'code').catch(()=>{});
     notify('Produit modifié avec succès !');
   } else {
     REF_DATA.push(obj);
+    sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()},'code').catch(()=>{});
     notify('Produit ajouté avec succès !');
   }
   closeModal();
@@ -1012,19 +1016,28 @@ function checkNC(param,spec,type){
   else{inp.classList.remove('input-nc');hint.textContent='';}
 }
 
-function saveLot(){
+async function saveLot(){
   const code=document.getElementById('s-code').value;
   const lot=document.getElementById('s-lot').value.trim();
   if(!lot){notify('N° de lot requis','error');return;}
   const ref=getRef(code);
   const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
-  const row={Code:code,DateFab:document.getElementById('s-fab').value,Lot:lot,DateLib:document.getElementById('s-lib').value,Statut:document.getElementById('s-statut').value,Type:ref?.Type||""};
+  const paramsObj={};
   params.forEach(p=>{
     const id=p.replace(/\s+/g,'_');
     const v=document.getElementById(`sv-${id}`)?.value;
-    row[p]=v===''||v===undefined?null:parseFloat(v);
+    paramsObj[p]=v===''||v===undefined?null:parseFloat(v);
   });
-  savedLots.push(row);
+  const date_fab=document.getElementById('s-fab').value||null;
+  const date_lib=document.getElementById('s-lib').value||null;
+  const date_per=document.getElementById('s-per').value||null;
+  const statut=document.getElementById('s-statut').value;
+  const localRow={Code:code,Lot:lot,DateFab:date_fab||'',DateLib:date_lib||'',DatePer:date_per||'',Statut:statut,Type:ref?.Type||"",...paramsObj};
+  // Save to Supabase
+  const supaRow={code,lot,date_fab,date_lib,date_per,statut,type:ref?.Type||'',params:paramsObj,saisi_par:currentUser?.nom||'inconnu'};
+  const saved=await sbInsert('lots',supaRow);
+  if(saved&&saved[0]) localRow._id=saved[0].id;
+  savedLots.push(localRow);
   renderSavedLots();
   resetForm();
   notify('Lot enregistré !');
@@ -1112,6 +1125,38 @@ document.getElementById('modal-produit').addEventListener('click',e=>{ if(e.targ
 // ═══════════════════════════════════════════════════
 
 
+// ══════════════════════════════════════════════════
+// SUPABASE CLIENT
+// ══════════════════════════════════════════════════
+const SUPA = supabase.createClient('https://sthaazqccmtjzchsmrzu.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0aGFhenFjY210anpjaHNtcnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNDc5NTcsImV4cCI6MjA4ODYyMzk1N30.sGFf3ful8bbUxrQGVsHsnMYKyri2DNTSGIX3HYXJfTw');
+
+async function sbGet(table, filters={}){
+  let q = SUPA.from(table).select('*');
+  Object.entries(filters).forEach(([k,v]) => q = q.eq(k,v));
+  const {data,error} = await q;
+  if(error){ console.error('sbGet',table,error); return []; }
+  return data||[];
+}
+async function sbInsert(table, row){
+  const {data,error} = await SUPA.from(table).insert(row).select();
+  if(error) console.error('sbInsert',table,error);
+  return data;
+}
+async function sbUpdate(table, match, updates){
+  const {data,error} = await SUPA.from(table).update(updates).match(match).select();
+  if(error) console.error('sbUpdate',table,error);
+  return data;
+}
+async function sbUpsert(table, row, onConflict){
+  const {data,error} = await SUPA.from(table).upsert(row,{onConflict}).select();
+  if(error) console.error('sbUpsert',table,error);
+  return data;
+}
+async function sbDelete(table, match){
+  const {error} = await SUPA.from(table).delete().match(match);
+  if(error) console.error('sbDelete',table,error);
+}
+
 // ═══════════════════════════════════════════════════
 // AUTH — SHA-256 + gestion dynamique des utilisateurs
 // Les utilisateurs sont stockés dans localStorage
@@ -1129,17 +1174,13 @@ const DEFAULT_USERS = [
 let currentUser = null;
 let editingLogin = null; // utilisateur en cours d'édition dans le modal
 
-// ── Charge les utilisateurs depuis localStorage (ou défaut) ──
-function loadUsers(){
-  try {
-    const stored = localStorage.getItem('cq_users');
-    return stored ? JSON.parse(stored) : [...DEFAULT_USERS];
-  } catch(e){ return [...DEFAULT_USERS]; }
+// ── Charge les utilisateurs depuis Supabase ──
+async function loadUsers(){
+  const rows = await sbGet('utilisateurs');
+  if(rows.length===0) return [...DEFAULT_USERS];
+  return rows.map(r=>({login:r.login, hash:r.hash, nom:r.nom, role:r.role}));
 }
-
-function saveUsers(users){
-  localStorage.setItem('cq_users', JSON.stringify(users));
-}
+// saveUsers non utilisé — chaque op fait son propre upsert/delete
 
 // ── SHA-256 ───────────────────────────────────────────────────
 async function sha256(str){
@@ -1153,11 +1194,13 @@ async function doLogin(){
   const pwd   = document.getElementById('l-pwd').value;
   const err   = document.getElementById('lerr');
   if(!login||!pwd){ err.style.display='block'; err.textContent='Remplissez tous les champs.'; return; }
+  err.style.display='block'; err.textContent='Vérification...'; err.style.color='var(--text3)';
   const hash  = await sha256(pwd);
-  const users = loadUsers();
+  const users = await loadUsers();
   const user  = users.find(u => u.login===login && u.hash===hash);
   if(!user){
     err.style.display='block';
+    err.style.color='';
     err.textContent='Identifiants incorrects.';
     document.getElementById('l-pwd').value='';
     return;
@@ -1168,6 +1211,8 @@ async function doLogin(){
   updateHeaderUser(user);
   applyRoleUI();
   notify('Bienvenue, '+user.nom+' !');
+  // Sync users to Supabase if empty
+  syncUsersToSupabase();
 }
 
 function initNetlifyAuth(){ /* non utilisé */ }
@@ -1194,10 +1239,23 @@ function applyRoleUI(){
 
 function doLogout(){
   if(!confirm('Se déconnecter ?')) return;
-  currentUser = null;
+  currentUser=null;
   document.getElementById('l-user').value='';
   document.getElementById('l-pwd').value='';
   document.getElementById('login-overlay').style.display='flex';
+}
+
+async function syncUsersToSupabase(){
+  try{
+    const existing=await sbGet('utilisateurs');
+    if(existing.length===0){
+      const localUsers=DEFAULT_USERS;
+      for(const u of localUsers){
+        await sbInsert('utilisateurs',{login:u.login,hash:u.hash,nom:u.nom,role:u.role}).catch(()=>{});
+      }
+      console.log('✓ Utilisateurs synchronisés vers Supabase');
+    }
+  }catch(e){console.warn('syncUsersToSupabase:',e);}
 }
 
 // ── GESTION UTILISATEURS (admin) ──────────────────────────────
@@ -1213,8 +1271,8 @@ function closeUsersModal(){
   document.getElementById('modal-users').classList.remove('show');
 }
 
-function renderUsersList(){
-  const users = loadUsers();
+async function renderUsersList(){
+  const users = await loadUsers();
   const colors = ['#0369a1','#059669','#7c3aed','#d97706','#dc2626','#0891b2','#be185d'];
   document.getElementById('users-list').innerHTML = users.map((u,i) => {
     const initials = getUserInitials(u);
@@ -1234,8 +1292,8 @@ function renderUsersList(){
   }).join('');
 }
 
-function editUser(login){
-  const users = loadUsers();
+async function editUser(login){
+  const users = await loadUsers();
   const u = users.find(x => x.login===login);
   if(!u) return;
   editingLogin = login;
@@ -1271,43 +1329,36 @@ async function saveUser(){
   let users = loadUsers();
 
   if(editingLogin){
-    // Modification
-    const idx = users.findIndex(u=>u.login===editingLogin);
-    if(idx<0) return;
-    users[idx].nom  = nom;
-    users[idx].role = role;
-    if(pwd){ users[idx].hash = await sha256(pwd); }
+    const updates = {nom, role};
+    if(pwd){ updates.hash = await sha256(pwd); }
+    await sbUpdate('utilisateurs', {login: editingLogin}, updates);
     notify('Utilisateur modifié !');
-    // Si c'est l'utilisateur courant, mettre à jour
     if(currentUser.login===editingLogin){
-      currentUser = users[idx];
+      currentUser = {...currentUser, nom, role};
       updateHeaderUser(currentUser);
       applyRoleUI();
     }
   } else {
-    // Ajout
     if(!pwd){ err.style.display='block'; err.textContent='Mot de passe requis pour un nouvel utilisateur.'; return; }
-    if(users.find(u=>u.login===login)){ err.style.display='block'; err.textContent='Cet identifiant existe déjà.'; return; }
+    const existingUsers = await loadUsers();
+    if(existingUsers.find(u=>u.login===login)){ err.style.display='block'; err.textContent='Cet identifiant existe déjà.'; return; }
     const hash = await sha256(pwd);
-    users.push({ login, hash, nom, role });
+    await sbInsert('utilisateurs', {login, hash, nom, role});
     notify('Utilisateur ajouté !');
   }
 
-  saveUsers(users);
   resetUserForm();
-  renderUsersList();
+  await renderUsersList();
 }
 
-function deleteUser(login){
+async function deleteUser(login){
   if(!confirm('Supprimer l\'utilisateur '+login+' ?')) return;
-  let users = loadUsers();
-  // Empêcher de supprimer le dernier admin
+  const users = await loadUsers();
   const admins = users.filter(u=>u.role==='admin');
   const target = users.find(u=>u.login===login);
   if(target?.role==='admin' && admins.length<=1){ notify('Impossible : dernier administrateur.','error'); return; }
-  users = users.filter(u=>u.login!==login);
-  saveUsers(users);
-  renderUsersList();
+  await sbDelete('utilisateurs', {login});
+  await renderUsersList();
   notify('Utilisateur supprimé.');
 }
 
@@ -1316,13 +1367,70 @@ document.getElementById('modal-users').addEventListener('click', e=>{
 });
 
 
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
   initNetlifyAuth();
   populateAnalyseDropdowns();
   populateSaisieDropdowns();
+  // Charger les lots depuis Supabase
+  await loadAllFromSupabase();
   renderDashboard();
   updateAlertBadge();
 });
+
+async function loadAllFromSupabase(){
+  await loadAllFromSupabase();
+  await loadProduitsFromSupabase();
+  await loadLimitesFromSupabase();
+}
+
+async function loadProduitsFromSupabase(){
+  try{
+    const rows=await sbGet('produits');
+    rows.forEach(r=>{
+      if(r.specs){
+        const idx=REF_DATA.findIndex(x=>x.Code===r.code);
+        if(idx>=0) REF_DATA[idx]={...REF_DATA[idx],...r.specs};
+        else REF_DATA.push(r.specs);
+      }
+    });
+    console.log(`✓ ${rows.length} produits chargés depuis Supabase`);
+  }catch(e){console.warn('loadProduits:',e);}
+}
+
+async function loadLimitesFromSupabase(){
+  try{
+    const rows=await sbGet('limites_fixes');
+    rows.forEach(r=>{
+      if(!FIXED_LIMITS[r.parametre]) FIXED_LIMITS[r.parametre]={};
+      FIXED_LIMITS[r.parametre][r.type_produit]=[parseFloat(r.lsi),parseFloat(r.lss)];
+    });
+    console.log(`✓ ${rows.length} limites chargées depuis Supabase`);
+  }catch(e){console.warn('loadLimites:',e);}
+}
+
+async function loadLotsFromSupabase(){
+  try {
+    const rows = await sbGet('lots');
+    // Convert Supabase rows to local format
+    rows.forEach(r => {
+      const localRow = {
+        Code: r.code, Lot: r.lot,
+        DateFab: r.date_fab||'', DateLib: r.date_lib||'',
+        DatePer: r.date_per||'', Statut: r.statut,
+        Type: r.type, _id: r.id,
+        ...(r.params||{})
+      };
+      // Avoid duplicates
+      if(!savedLots.find(l=>l._id===r.id)){
+        savedLots.push(localRow);
+      }
+    });
+    if(savedLots.length) renderSavedLots();
+    console.log(`✓ ${savedLots.length} lots chargés depuis Supabase`);
+  } catch(e){
+    console.error('Erreur chargement lots:', e);
+  }
+}
 </script>
 
 <!-- MODAL GESTION UTILISATEURS -->
