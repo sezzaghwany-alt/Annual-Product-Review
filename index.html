@@ -448,7 +448,7 @@ const PARAMS_BY_TYPE = {
   "Solution Dialyse Bicarbonate":["Sodium","Chlorures","Bicarbonates","pH","Poids","Rendement"],
   "Cartouche":["Bicarbonates","pH","Poids","Rendement"],
   "Poches stériles Chlorures":["pH","Poids","Rendement","Chlorure de sodium","Osmolalité"],
-  "Poches stériles Glucose":["Glucose","pH","Poids","Rendement","Osmolalité"],
+  "Poches stériles Glucose":["Glucose","pH","Poids","Rendement","Osmolalité","HMF"],
 };
 
 const PARAM_TOLERANCE = {
@@ -463,7 +463,7 @@ function getUnit(param, type) {
   if (param === "Osmolalité")  return "mOsm/kg";
   if (param === "Rendement")   return "%";
   if (param === "pH")          return "";
-  if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return "%";
+  if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return "";
   // Sodium dans les poches stériles → %
   if (param === "Sodium" && (type === "Poches stériles Chlorures" || type === "Poches stériles Glucose")) return "%";
   // Chlorure de sodium (poches) → %
@@ -546,7 +546,7 @@ function getLimits(param, spec, type) {
     const entry = FIXED_LIMITS[param]?.[type];
     return entry ? {lsi: entry[0], lss: entry[1]} : null;
   }
-  if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return {lsi:0,lss:0.002};
+  if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return {lsi:null,lss:0.25};
   // Tous les autres params (y compris Poids) : tolérance ±% sur la valeur cible
   if (spec === null || spec === undefined) return null;
   const tol = (PARAM_TOLERANCE[param] ?? 5) / 100;
@@ -663,7 +663,7 @@ function getAllAlerts(){
       if(!lim) return;
       rows.forEach(row=>{
         const v=row[param];
-        if(v!==null&&v!==undefined&&!isNaN(v)&&(v<lim.lsi||v>lim.lss))
+        if(v!==null&&v!==undefined&&!isNaN(v)&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss))
           out.push({code:ref.Code,désignation:ref.Désignation,lot:row.Lot,param,value:v,lsi:lim.lsi,lss:lim.lss,date:row.DateLib});
       });
     });
@@ -946,7 +946,7 @@ function onFilterChange(){
 
   const vals=filtered.map(r=>r[param]).filter(v=>v!==null&&v!==undefined&&!isNaN(v));
   const stats=calcStats(vals,lim?.lsi??null,lim?.lss??null);
-  const ncPts=filtered.filter(r=>{ const v=r[param]; return lim&&v!==null&&!isNaN(v)&&(v<lim.lsi||v>lim.lss); });
+  const ncPts=filtered.filter(r=>{ const v=r[param]; return lim&&v!==null&&!isNaN(v)&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss); });
 
   // Meta
   const unit=getUnit(param,type);
@@ -1000,7 +1000,7 @@ function onFilterChange(){
   const tbody=document.getElementById('lots-tbody');
   if(!chartPts.length){tbody.innerHTML=`<tr><td colspan="4" class="tc" style="padding:28px;color:var(--text3)">Aucune donnée</td></tr>`;return;}
   tbody.innerHTML=chartPts.map(r=>{
-    const v=r[param]; const nc=lim&&(v<lim.lsi||v>lim.lss);
+    const v=r[param]; const nc=lim&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss);
     return `<tr class="${nc?'nc-row':''}">
       <td class="mono">${r.Lot}</td>
       <td style="color:var(--text3)">${r.DateLib||'—'}</td>
@@ -1016,7 +1016,7 @@ function renderChart(pts,param,lim,stats){
   if(!pts.length) return;
   const labels=pts.map((r,i)=>r.Lot||`#${i+1}`);
   const values=pts.map(r=>r[param]);
-  const pColors=values.map(v=>lim&&(v<lim.lsi||v>lim.lss)?'#dc2626':'#0369a1');
+  const pColors=values.map(v=>lim&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss)?'#dc2626':'#0369a1');
 
   // Compute y-axis bounds so LSI/LSS are always visible — add 5% padding
   let yMin=undefined, yMax=undefined;
@@ -1030,7 +1030,7 @@ function renderChart(pts,param,lim,stats){
 
   mainChart=new Chart(ctx,{
     type:'line',
-    data:{labels,datasets:[{label:param,data:values,borderColor:'#0369a1',backgroundColor:'rgba(3,105,161,.07)',pointBackgroundColor:pColors,pointBorderColor:pColors,pointRadius:values.map(v=>lim&&(v<lim.lsi||v>lim.lss)?7:3.5),pointHoverRadius:8,borderWidth:2,tension:.25,fill:false}]},
+    data:{labels,datasets:[{label:param,data:values,borderColor:'#0369a1',backgroundColor:'rgba(3,105,161,.07)',pointBackgroundColor:pColors,pointBorderColor:pColors,pointRadius:values.map(v=>lim&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss)?7:3.5),pointHoverRadius:8,borderWidth:2,tension:.25,fill:false}]},
     options:{
       responsive:true,maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
@@ -1104,7 +1104,7 @@ function checkNC(param,spec,type){
   const v=parseFloat(inp.value);
   const lim=getLimits(param,isNaN(spec)?null:spec,type);
   if(!inp.value||!lim){inp.classList.remove('input-nc');hint.textContent='';return;}
-  if(v<lim.lsi||v>lim.lss){inp.classList.add('input-nc');hint.textContent='⚠️ Hors spécification';}
+  if((lim.lsi!==null&&v<lim.lsi)||v>lim.lss){inp.classList.add('input-nc');hint.textContent='⚠️ Hors spécification';}
   else{inp.classList.remove('input-nc');hint.textContent='';}
 }
 
