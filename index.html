@@ -58,7 +58,7 @@ tr:hover td{background:#f8fafc}
 .mono{font-family:var(--mono)}
 .tr{text-align:right}.tc{text-align:center}
 .filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);margin-bottom:16px}
-.filter-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:12px;align-items:end}
+.filter-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:12px;align-items:end}
 .fg label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
 select,input[type=date],input[type=text],input[type=number]{width:100%;border:1px solid var(--border2);border-radius:7px;padding:7px 9px;font-family:var(--sans);font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s;appearance:none}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;padding-right:26px}
@@ -278,6 +278,12 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div class="fg"><label>Produit</label><select id="f-code" onchange="onCodeChange()"></select></div>
       <div class="fg"><label>Paramètre</label><select id="f-param" onchange="onFilterChange()"></select></div>
       <div class="fg"><label>Statut</label><select id="f-statut" onchange="onFilterChange()"><option>IPC</option><option selected>Libération</option></select></div>
+      <div class="fg"><label>Type de date</label>
+        <select id="f-datetype" onchange="onFilterChange()">
+          <option value="DateLib">Date de libération</option>
+          <option value="DateFab">Date de fabrication</option>
+        </select>
+      </div>
       <div class="fg"><label>Date début</label><input type="date" id="f-debut" value="2025-01-01" onchange="onFilterChange()"></div>
       <div class="fg"><label>Date fin</label><input type="date" id="f-fin" value="2025-12-31" onchange="onFilterChange()"></div>
     </div>
@@ -334,6 +340,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div class="fg-form"><label>N° lot *</label><input type="text" id="s-lot" placeholder="ex: 2501099D"></div>
       <div class="fg-form"><label>Date de fabrication</label><input type="date" id="s-fab"></div>
       <div class="fg-form"><label>Date de libération</label><input type="date" id="s-lib"></div>
+      <div class="fg-form"><label>Date de péremption</label><input type="date" id="s-per"></div>
       <div class="fg-form"><label>Type de contrôle</label><select id="s-statut"><option>IPC</option><option selected>Libération</option></select></div>
     </div>
     <div class="section-title">Résultats analytiques</div>
@@ -346,7 +353,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
   <div id="saved-lots-section" style="display:none">
     <div class="card">
       <div class="card-header" id="saved-lots-header">Lots saisis</div>
-      <div class="tw"><table><thead><tr><th>Code</th><th>N° lot</th><th>Date fab.</th><th>Date lib.</th><th>Statut</th></tr></thead>
+      <div class="tw"><table><thead><tr><th>Code</th><th>N° lot</th><th>Date fab.</th><th>Date lib.</th><th>Date pér.</th><th>Statut</th></tr></thead>
       <tbody id="saved-tbody"></tbody></table></div>
     </div>
   </div>
@@ -839,11 +846,13 @@ function onFilterChange(){
   const spec=ref?.[param]??null;
   const lim=getLimits(param,spec,type);
 
+  const datetype=document.getElementById('f-datetype').value;
   const filtered=allData().filter(r=>{
     if(r.Code!==code) return false;
     if(r.Statut!==statut) return false;
-    if(debut&&r.DateLib&&r.DateLib<debut) return false;
-    if(fin&&r.DateLib&&r.DateLib>fin) return false;
+    const d=r[datetype];
+    if(debut&&d&&d<debut) return false;
+    if(fin&&d&&d>fin) return false;
     return true;
   });
 
@@ -854,8 +863,11 @@ function onFilterChange(){
   // Meta
   const unit=getUnit(param,type);
   const unitStr=unit?` ${unit}`:'';
+  const datetype=document.getElementById('f-datetype').value;
+  const datetypeLabel=datetype==='DateLib'?'Date libération':'Date fabrication';
   document.getElementById('filter-meta').innerHTML=`
     <span class="badge b-purple">${type}</span>
+    <span class="badge b-gray">📅 ${datetypeLabel}</span>
     ${unit?`<span class="badge b-gray" style="font-family:var(--mono)">${unit}</span>`:''}
     ${lim?`<span class="badge b-blue">LSI: ${fmt(lim.lsi,3)}${unitStr} | LSS: ${fmt(lim.lss,3)}${unitStr}</span>`:''}
     ${spec!==null?`<span class="badge b-gray">Spec: ${spec}${unitStr}</span>`:''}
@@ -1034,6 +1046,7 @@ function resetForm(){
   document.getElementById('s-lot').value='';
   document.getElementById('s-fab').value='';
   document.getElementById('s-lib').value='';
+  document.getElementById('s-per').value='';
   const code=document.getElementById('s-code').value;
   const ref=getRef(code);
   const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
@@ -1053,6 +1066,7 @@ function renderSavedLots(){
     <td class="mono">${l.Lot}</td>
     <td style="color:var(--text3)">${l.DateFab||'—'}</td>
     <td style="color:var(--text3)">${l.DateLib||'—'}</td>
+    <td style="color:var(--text3)">${l.DatePer||'—'}</td>
     <td><span class="badge ${l.Statut==='Libération'?'b-green':'b-blue'}">${l.Statut}</span></td>
   </tr>`).join('');
 }
