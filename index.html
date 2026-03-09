@@ -375,11 +375,16 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 
 <!-- ALERTES -->
 <div class="page" id="page-alertes">
-  <div class="flex-between mb18">
+  <div class="flex-between mb18" id="alertes-header">
     <h2 style="margin:0">Alertes de non-conformité</h2>
     <span id="alertes-badge"></span>
   </div>
   <div id="alertes-content"></div>
+  <!-- Bouton retour haut -->
+  <button id="btn-back-top" onclick="document.getElementById('alertes-scroll')?.scrollTo({top:0,behavior:'smooth'})"
+    style="display:none;position:fixed;bottom:28px;right:28px;width:44px;height:44px;border-radius:50%;
+    background:var(--accent);color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);
+    z-index:500;align-items:center;justify-content:center;transition:opacity .2s">↑</button>
 </div>
 
 
@@ -547,6 +552,8 @@ function getLimits(param, spec, type) {
     return entry ? {lsi: entry[0], lss: entry[1]} : null;
   }
   if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return {lsi:null,lss:0.25};
+  // Rendement : cible fixe 100% ±5%
+  if (param === "Rendement") return {lsi: 95, lss: 105};
   // Tous les autres params (y compris Poids) : tolérance ±% sur la valeur cible
   if (spec === null || spec === undefined) return null;
   const tol = (PARAM_TOLERANCE[param] ?? 5) / 100;
@@ -567,7 +574,7 @@ function calcStats(vals, lsi, lss) {
   if (std>0 && lsi!==null && lss!==null) {
     cp=(lss-lsi)/(6*std); cpi=(mean-lsi)/(3*std); cps=(lss-mean)/(3*std); cpk=Math.min(cpi,cps);
   }
-  const lci=mean-1.96*(std/Math.sqrt(n)), lcs=mean+1.96*(std/Math.sqrt(n));
+  const lci=mean-3*std, lcs=mean+3*std;
   return {n,mean,std,min,max,cp,cpk,lci,lcs};
 }
 
@@ -595,7 +602,19 @@ function showPage(id){
   document.getElementById('page-'+id).classList.add('active');
   document.querySelectorAll('.nb').forEach(b=>{ if(b.getAttribute('onclick')===`showPage('${id}')`) b.classList.add('active'); });
   if(id==='dashboard') renderDashboard();
-  if(id==='alertes') renderAlertes();
+  if(id==='alertes'){
+    renderAlertes();
+    // Show/hide back-to-top on scroll
+    setTimeout(()=>{
+      const scroller = document.getElementById('alertes-scroll');
+      const btn = document.getElementById('btn-back-top');
+      if(scroller && btn){
+        scroller.onscroll = ()=>{
+          btn.style.display = scroller.scrollTop > 150 ? 'flex' : 'none';
+        };
+      }
+    }, 100);
+  }
   if(id==='specs') renderSpecs();
   if(id==='analyse') { populateAnalyseDropdowns(); onFilterChange(); }
   if(id==='saisie') populateSaisieDropdowns();
@@ -980,8 +999,8 @@ function onFilterChange(){
     sg2.innerHTML=`
       ${lim?`<div class="sc"><div class="sc-label">LSI</div><div class="sc-value" style="color:var(--danger)">${fmt(lim.lsi,3)}${uSuffix}</div></div>
              <div class="sc"><div class="sc-label">LSS</div><div class="sc-value" style="color:var(--danger)">${fmt(lim.lss,3)}${uSuffix}</div></div>`:''}
-      <div class="sc"><div class="sc-label">LCI 95%</div><div class="sc-value" style="color:var(--accent)">${fmt(stats.lci,3)}${uSuffix}</div></div>
-      <div class="sc"><div class="sc-label">LCS 95%</div><div class="sc-value" style="color:var(--accent)">${fmt(stats.lcs,3)}${uSuffix}</div></div>`;
+      <div class="sc"><div class="sc-label">LCI (μ−3σ)</div><div class="sc-value" style="color:var(--accent)">${fmt(stats.lci,3)}${uSuffix}</div></div>
+      <div class="sc"><div class="sc-label">LCS (μ+3σ)</div><div class="sc-value" style="color:var(--accent)">${fmt(stats.lcs,3)}${uSuffix}</div></div>`;
     const ic=document.getElementById('interp-card');
     ic.style.display='block';
     let txt=`<b>Cp = ${fmt(stats.cp,3)} :</b> ${stats.cp>=1.67?'Excellente':stats.cp>=1.33?'Satisfaisante':stats.cp>=1?'Acceptable':'Insuffisante'}. `;
@@ -1213,8 +1232,8 @@ function renderAlertes(){
     cont.innerHTML=`<div class="empty"><div class="empty-icon">✅</div><div class="empty-text" style="color:var(--success);font-weight:600;font-size:15px">Aucune non-conformité</div><p style="margin-top:6px;font-size:13px">Tous les paramètres sont dans les limites.</p></div>`;
     return;
   }
-  cont.innerHTML=`<div class="card"><div class="tw"><table>
-    <thead><tr><th>Code</th><th>Lot</th><th>Date</th><th>Paramètre</th><th class="tr">Valeur</th><th class="tr">LSI</th><th class="tr">LSS</th><th class="tc">Écart</th><th class="tc">Action</th></tr></thead>
+  cont.innerHTML=`<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto;max-height:calc(100vh - 200px);overflow-y:auto" id="alertes-scroll"><table style="border-collapse:collapse;width:100%">
+    <thead style="position:sticky;top:0;z-index:10;background:var(--card)"><tr><th>Code</th><th>Lot</th><th>Date</th><th>Paramètre</th><th class="tr">Valeur</th><th class="tr">LSI</th><th class="tr">LSS</th><th class="tc">Écart</th><th class="tc">Action</th></tr></thead>
     <tbody>${alerts.map(a=>{
       const e=a.value<a.lsi?((a.value-a.lsi)/a.lsi*100):((a.value-a.lss)/a.lss*100);
       return `<tr>
