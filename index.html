@@ -1018,15 +1018,21 @@ function renderChart(pts,param,lim,stats){
   const values=pts.map(r=>r[param]);
   const pColors=values.map(v=>lim&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss)?'#dc2626':'#0369a1');
 
-  // Compute y-axis bounds so LSI/LSS are always visible — add 5% padding
+  // Axe Y intelligent : centré sur les données réelles, LSI/LSS peuvent être hors-champ
   let yMin=undefined, yMax=undefined;
+  const dataMin=Math.min(...values), dataMax=Math.max(...values);
+  const dataRange = dataMax - dataMin || Math.abs(dataMin)*0.01 || 1;
+  const dataPad = dataRange * 0.35; // 35% de marge autour des données
+  let yLo = dataMin - dataPad;
+  let yHi = dataMax + dataPad;
+
   if(lim){
-    const allVals=[...values, lim.lsi, lim.lss].filter(v=>v!==null&&!isNaN(v));
-    const dataMin=Math.min(...allVals), dataMax=Math.max(...allVals);
-    const pad=(dataMax-dataMin)*0.08 || Math.abs(dataMin)*0.05 || 1;
-    yMin=dataMin-pad;
-    yMax=dataMax+pad;
+    // Inclure LSI/LSS seulement s'ils sont proches des données (< 3× l'étendue des données)
+    const threshold = dataRange * 3;
+    if(lim.lsi !== null && !isNaN(lim.lsi) && (dataMin - lim.lsi) < threshold) yLo = Math.min(yLo, lim.lsi - dataPad*0.3);
+    if(lim.lss !== null && !isNaN(lim.lss) && (lim.lss - dataMax) < threshold) yHi = Math.max(yHi, lim.lss + dataPad*0.3);
   }
+  yMin = yLo; yMax = yHi;
 
   mainChart=new Chart(ctx,{
     type:'line',
@@ -1054,10 +1060,40 @@ function renderChart(pts,param,lim,stats){
         c.textAlign= side==='left'?'left':'right';
         c.fillText(lbl, side==='left'?left+4:right-3, lyp-3);
       };
-      // LSI/LSS always drawn — use left side to avoid overlap
+      // LSI/LSS : dessinés si dans l'axe, sinon label sur le bord avec flèche
       if(lim){
-        dl(lim.lss,'#dc2626',[6,3],'LSS ▲','right');
-        dl(lim.lsi,'#dc2626',[6,3],'LSI ▼','left');
+        const drawLimitLine = (val, label, side) => {
+          if(val===null||val===undefined||isNaN(val)) return;
+          const inBounds = val >= y.min && val <= y.max;
+          if(inBounds){
+            // Ligne normale
+            const yp=y.getPixelForValue(val);
+            c.beginPath();c.setLineDash([6,3]);c.strokeStyle='#dc2626';c.lineWidth=1.5;
+            c.moveTo(left,yp);c.lineTo(right,yp);c.stroke();
+            c.setLineDash([]);c.fillStyle='#dc2626';c.font='bold 10px DM Sans';
+            c.textAlign=side==='left'?'left':'right';
+            const lyp=Math.max(top+12,Math.min(bottom-4,yp));
+            c.fillText(label+' '+fmt(val,3), side==='left'?left+4:right-3, lyp-3);
+          } else {
+            // Hors champ : indicateur sur le bord
+            const isBelow = val < y.min;
+            const edgeY = isBelow ? bottom-2 : top+2;
+            const arrow = isBelow ? '▼' : '▲';
+            c.setLineDash([]);c.fillStyle='#dc2626';
+            c.font='bold 10px DM Sans';
+            c.textAlign=side==='left'?'left':'right';
+            const txt = `${label} ${arrow} ${fmt(val,3)}`;
+            const xPos = side==='left' ? left+4 : right-3;
+            // Fond semi-transparent
+            const tw = c.measureText(txt).width;
+            c.fillStyle='rgba(220,38,38,0.12)';
+            c.fillRect(side==='left'?xPos-2:xPos-tw-2, isBelow?edgeY-14:edgeY, tw+4, 14);
+            c.fillStyle='#dc2626';
+            c.fillText(txt, xPos, isBelow?edgeY-3:edgeY+11);
+          }
+        };
+        drawLimitLine(lim.lss, 'LSS', 'right');
+        drawLimitLine(lim.lsi, 'LSI', 'left');
       }
       if(stats){
         dl(stats.mean,'#059669',[4,2],'Moy','right');
@@ -1520,7 +1556,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 });
 
 async function loadAllFromSupabase(){
-  await loadAllFromSupabase();
+  savedLots = []; // reset pour éviter doublons
+  await loadLotsFromSupabase();
   await loadProduitsFromSupabase();
   await loadLimitesFromSupabase();
 }
