@@ -1121,7 +1121,7 @@ function initNetlifyAuth(){
   identity.on('error', err => console.error('Netlify Identity error:', err));
 
   // Init déclenche l'événement 'init' ci-dessus
-  identity.init();
+  identity.init({ APIUrl: 'https://product-quality-review.netlify.app/.netlify/identity' });
 }
 
 function getUserName(user){
