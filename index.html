@@ -1556,7 +1556,7 @@ ${currentUser?.nom || 'L\'équipe Assurance Qualité'}
 `);
 
   window.location.href = `mailto:${dest}?subject=${sujet}&body=${corps}`;
-  logAction('utilisateur', \`Identifiants envoyés par mail à \${nom} (\${login})\`);
+  logAction('utilisateur', `Identifiants envoyés par mail à ${nom} (${login})`);
 }
 
 async function editUser(login){
