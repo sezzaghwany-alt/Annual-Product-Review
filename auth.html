@@ -6,7 +6,7 @@
 <title>Authentification — Contrôle Qualité</title>
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <style>
-  body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:#f0f4f8;display:flex;align-items:center;justify-content:center;min-height:100vh}
+  body{margin:0;font-family:system-ui,sans-serif;background:#f0f4f8;display:flex;align-items:center;justify-content:center;min-height:100vh}
   .box{background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.12);padding:40px;text-align:center;width:340px;max-width:95vw}
   .badge{width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,#0369a1,#075985);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;margin:0 auto 20px}
   h1{font-size:18px;font-weight:700;margin:0 0 6px}
@@ -24,48 +24,49 @@
   <div class="spinner"></div>
   <div class="status" id="status">Vérification en cours...</div>
 </div>
-
 <script>
+  const SITE = 'https://product-quality-review.netlify.app';
   const status = document.getElementById('status');
 
-  // Lire le hash AVANT que quoi que ce soit ne le modifie
-  const hash = window.location.hash;
-  const hasToken = hash.includes('invite_token=') 
-                || hash.includes('recovery_token=') 
-                || hash.includes('confirmation_token=');
+  // Lire le hash immédiatement avant toute modification
+  const rawHash = window.location.hash;
+  console.log('Hash detected:', rawHash);
 
-  if (hasToken) {
-    status.textContent = 'Activation du compte...';
-  }
+  const hasInvite       = rawHash.includes('invite_token=');
+  const hasRecovery     = rawHash.includes('recovery_token=');
+  const hasConfirmation = rawHash.includes('confirmation_token=');
+  const hasAnyToken     = hasInvite || hasRecovery || hasConfirmation;
+
+  if (hasInvite)       status.textContent = 'Activation de votre compte...';
+  else if (hasRecovery) status.textContent = 'Réinitialisation du mot de passe...';
 
   window.netlifyIdentity.on('init', user => {
+    console.log('Identity init, user:', user);
     if (user) {
-      // Déjà connecté → aller à l'app
       status.textContent = 'Connecté ! Redirection...';
-      setTimeout(() => { window.location.href = '/'; }, 800);
-    } else if (!hasToken) {
+      setTimeout(() => { window.location.href = SITE; }, 800);
+    } else if (!hasAnyToken) {
       // Pas de token, pas connecté → aller à l'app (qui ouvrira le login)
-      window.location.href = '/';
+      window.location.href = SITE;
+    } else {
+      // Token présent → ouvrir le widget pour définir le mot de passe
+      status.textContent = 'Ouverture du formulaire...';
+      window.netlifyIdentity.open();
     }
-    // Si hasToken → le widget ouvre automatiquement le formulaire de mot de passe
   });
 
-  window.netlifyIdentity.on('login', user => {
-    status.textContent = `Bienvenue ! Redirection vers l'application...`;
-    setTimeout(() => { window.location.href = '/'; }, 1000);
+  window.netlifyIdentity.on('login', () => {
+    status.textContent = 'Connecté ! Redirection vers l\'application...';
+    setTimeout(() => { window.location.href = SITE; }, 1000);
   });
 
   window.netlifyIdentity.on('error', err => {
-    status.textContent = 'Erreur : ' + err.message;
+    console.error('Identity error:', err);
+    status.textContent = 'Erreur : ' + (err.message || err);
     status.style.color = '#dc2626';
   });
 
-  // Ouvrir le widget si token présent
-  window.netlifyIdentity.init();
-  if (hasToken) {
-    // Petit délai pour laisser le widget parser le hash
-    setTimeout(() => window.netlifyIdentity.open(), 300);
-  }
+  window.netlifyIdentity.init({ APIUrl: SITE + '/.netlify/identity' });
 </script>
 </body>
 </html>
