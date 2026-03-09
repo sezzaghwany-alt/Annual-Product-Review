@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contrôle Qualité — Production</title>
+<title>Assurance Qualité — ARWAMEDIC</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -152,6 +152,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 .modal2{background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.15);width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:28px}
 .modal2-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
 </style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='62' font-family='Arial'>🧪</text></svg>">
 </head>
 <body>
 
@@ -225,7 +226,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
   <div class="logo">
     <div class="logo-badge">APR</div>
     <div>
-      <div class="logo-text">Contrôle Qualité</div>
+      <div class="logo-text">Assurance Qualité</div>
       <div class="logo-sub">Paramètres de Production</div>
     </div>
   </div>
@@ -243,9 +244,25 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div style="font-size:10px" id="header-role">—</div>
     </div>
     <div class="user-avatar" id="header-avatar">?</div>
+    <button class="nb btn-secondary" style="font-size:11px;padding:5px 10px" onclick="openChangePwd()" title="Changer mon mot de passe">🔑</button>
     <button class="nb btn-secondary" style="font-size:11px;padding:5px 10px" onclick="doLogout()" title="Se déconnecter">⎋</button>
   </div>
 </header>
+
+<!-- MODAL CHANGEMENT MDP -->
+<div id="modal-changepwd" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:14px;padding:30px;width:360px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <h3 style="margin:0 0 20px;font-size:16px">🔑 Changer mon mot de passe</h3>
+    <div class="pg"><label>Mot de passe actuel</label><input type="password" id="cp-old" placeholder="••••••••"></div>
+    <div class="pg"><label>Nouveau mot de passe</label><input type="password" id="cp-new" placeholder="••••••••"></div>
+    <div class="pg"><label>Confirmer le nouveau</label><input type="password" id="cp-confirm" placeholder="••••••••"></div>
+    <div id="cp-err" style="display:none;color:var(--danger);font-size:12px;margin-bottom:12px;padding:8px;background:rgba(239,68,68,.1);border-radius:6px"></div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn btn-primary" style="flex:1" onclick="doChangePwd()">Enregistrer</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="closeChangePwd()">Annuler</button>
+    </div>
+  </div>
+</div>
 
 <main>
 
@@ -279,6 +296,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div class="fg"><label>Produit</label><select id="f-code" onchange="onCodeChange()"></select></div>
       <div class="fg"><label>Paramètre</label><select id="f-param" onchange="onFilterChange()"></select></div>
       <div class="fg"><label>Statut</label><select id="f-statut" onchange="onFilterChange()"><option>IPC</option><option selected>Libération</option></select></div>
+      <div class="fg"><label>Type de date</label><select id="f-date-type" onchange="onFilterChange()"><option value="DateLib">Date de libération</option><option value="DateFab">Date de fabrication</option></select></div>
       <div class="fg"><label>Date début</label><input type="date" id="f-debut" value="2025-01-01" onchange="onFilterChange()"></div>
       <div class="fg"><label>Date fin</label><input type="date" id="f-fin" value="2025-12-31" onchange="onFilterChange()"></div>
     </div>
@@ -422,6 +440,29 @@ let REF_DATA = REF_RAW.map(r => {
   return o;
 });
 
+// Poids cibles par produit (±5% — calculé depuis les données historiques)
+// Poids n'est PAS une limite fixe, il utilise la tolérance standard ±5%
+const POIDS_CIBLES = {
+  'PFF005': 5838,   // Solution Dialyse Acide cartouche 5.8L
+  'PFF006': 5838,
+  'PFF007': 5838,
+  'PFF008': 5838,
+  'PFF009': 10634,  // Bicarbonate 10L
+  'PFF010': 751,    // Cartouche 750g
+  'PFF011': 255,    // Poche 250ml
+  'PFF012': 512,    // Poche 500ml
+  'PFF013': 1024,   // Poche 1000ml
+  'PFF014': 2048,   // Poche 2000ml
+  'PFF015': 3072,   // Poche 3000ml
+  'PFF016': 255,    // Glucose 250ml
+  'PFF017': 500,    // Glucose 500ml
+  'PFF022': 5634,   // Solution Dialyse Acide 5.6L
+  'PFF034': 10634,
+};
+REF_DATA.forEach(r => {
+  if (POIDS_CIBLES[r.Code]) r.Poids = POIDS_CIBLES[r.Code];
+});
+
 let savedLots = [];
 let mainChart = null;
 let editingCode = null; // for modal
@@ -438,13 +479,7 @@ let FIXED_LIMITS = {
     "Poches stériles Glucose":      [4.0,  6.0],
     "Cartouche":                    [8.2,  9.0],
   },
-  Poids: {
-    "Solution Dialyse Acide":       [5700, 6200],
-    "Solution Dialyse Bicarbonate": [1000, 1200],
-    "Cartouche":                    [730,  770],
-    "Poches stériles Chlorures":    [480,  520],
-    "Poches stériles Glucose":      [480,  520],
-  },
+
   Osmolalité: {
     "Poches stériles Chlorures":    [270,  310],
     "Poches stériles Glucose":      [260,  320],
@@ -455,11 +490,13 @@ let FIXED_LIMITS = {
 // LIMITS (VBA logic — lit depuis FIXED_LIMITS)
 // ═══════════════════════════════════════════════════
 function getLimits(param, spec, type) {
-  if (param === "pH" || param === "Poids" || param === "Osmolalité") {
+  // pH et Osmolalité ont des limites fixes par type de produit
+  if (param === "pH" || param === "Osmolalité") {
     const entry = FIXED_LIMITS[param]?.[type];
     return entry ? {lsi: entry[0], lss: entry[1]} : null;
   }
   if (param === "HMF" || param === "Impureté 5 Hydroxyméthylfurfural") return {lsi:0,lss:0.002};
+  // Tous les autres params (y compris Poids) : tolérance ±% sur la valeur cible
   if (spec === null || spec === undefined) return null;
   const tol = (PARAM_TOLERANCE[param] ?? 5) / 100;
   return {lsi: spec*(1-tol), lss: spec*(1+tol)};
@@ -678,8 +715,7 @@ function renderSpecs(){
 function renderFixedLimitsSection(){
   const type = document.getElementById('m-type').value;
   const FIXED_PARAMS = [
-    { key:'pH',       label:'pH',        applicable: Object.keys(FIXED_LIMITS.pH) },
-    { key:'Poids',    label:'Poids (g)', applicable: Object.keys(FIXED_LIMITS.Poids) },
+    { key:'pH',        label:'pH',                  applicable: Object.keys(FIXED_LIMITS.pH) },
     { key:'Osmolalité',label:'Osmolalité (mOsm/kg)', applicable: Object.keys(FIXED_LIMITS.Osmolalité) },
   ];
   const sec = document.getElementById('m-fixed-limits-section');
@@ -847,8 +883,10 @@ function onFilterChange(){
   const filtered=allData().filter(r=>{
     if(r.Code!==code) return false;
     if(r.Statut!==statut) return false;
-    if(debut&&r.DateLib&&r.DateLib<debut) return false;
-    if(fin&&r.DateLib&&r.DateLib>fin) return false;
+    const dateType=document.getElementById('f-date-type')?.value||'DateLib';
+    const rowDate=r[dateType];
+    if(debut&&rowDate&&rowDate<debut) return false;
+    if(fin&&rowDate&&rowDate>fin) return false;
     return true;
   });
 
@@ -1256,6 +1294,49 @@ async function syncUsersToSupabase(){
       console.log('✓ Utilisateurs synchronisés vers Supabase');
     }
   }catch(e){console.warn('syncUsersToSupabase:',e);}
+}
+
+// ── Changement de mot de passe (tous les utilisateurs) ──────────────
+function openChangePwd(){
+  document.getElementById('cp-old').value='';
+  document.getElementById('cp-new').value='';
+  document.getElementById('cp-confirm').value='';
+  document.getElementById('cp-err').style.display='none';
+  const m=document.getElementById('modal-changepwd');
+  m.style.display='flex';
+}
+
+function closeChangePwd(){
+  document.getElementById('modal-changepwd').style.display='none';
+}
+
+async function doChangePwd(){
+  const oldPwd   = document.getElementById('cp-old').value;
+  const newPwd   = document.getElementById('cp-new').value;
+  const confirm  = document.getElementById('cp-confirm').value;
+  const errEl    = document.getElementById('cp-err');
+
+  const showErr = (msg) => { errEl.textContent=msg; errEl.style.display='block'; };
+  errEl.style.display='none';
+
+  if(!oldPwd||!newPwd||!confirm){ showErr('Veuillez remplir tous les champs.'); return; }
+  if(newPwd.length < 6){ showErr('Le mot de passe doit contenir au moins 6 caractères.'); return; }
+  if(newPwd !== confirm){ showErr('Les nouveaux mots de passe ne correspondent pas.'); return; }
+
+  // Verify old password
+  const oldHash = await sha256(oldPwd);
+  if(oldHash !== currentUser.hash){ showErr('Mot de passe actuel incorrect.'); return; }
+
+  const newHash = await sha256(newPwd);
+
+  // Update in Supabase
+  await sbUpdate('utilisateurs', {login: currentUser.login}, {hash: newHash});
+
+  // Update currentUser in memory
+  currentUser.hash = newHash;
+
+  closeChangePwd();
+  notify('Mot de passe mis à jour avec succès !');
 }
 
 // ── GESTION UTILISATEURS (admin) ──────────────────────────────
