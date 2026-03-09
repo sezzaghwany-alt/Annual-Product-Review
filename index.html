@@ -313,13 +313,22 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     <div class="interp-title">Interprétation automatique</div>
     <div class="interp-text" id="interp-text"></div>
   </div>
-  <div class="card">
-    <div class="card-header">Données des lots</div>
-    <div class="mh240"><div class="tw"><table>
-      <thead><tr><th>N° lot</th><th>Date lib.</th><th class="tr">Valeur</th><th class="tc">Statut</th></tr></thead>
-      <tbody id="lots-tbody"></tbody>
-    </table></div></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="card-header" style="padding:12px 18px;border-bottom:1px solid var(--border)">Données des lots</div>
+    <div id="lots-scroll" style="max-height:340px;overflow-y:auto;overflow-x:auto">
+      <table style="border-collapse:collapse;width:100%">
+        <thead style="position:sticky;top:0;z-index:10;background:var(--card)">
+          <tr><th>N° lot</th><th>Date fab.</th><th>Date lib.</th><th class="tr">Valeur</th><th class="tc">Statut</th></tr>
+        </thead>
+        <tbody id="lots-tbody"></tbody>
+      </table>
+    </div>
   </div>
+  <!-- Bouton retour haut lots -->
+  <button id="btn-lots-top" onclick="document.getElementById('lots-scroll').scrollTo({top:0,behavior:'smooth'})"
+    style="display:none;position:fixed;bottom:28px;right:28px;width:44px;height:44px;border-radius:50%;
+    background:var(--accent);color:#fff;border:none;font-size:20px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:500;align-items:center;justify-content:center">↑</button>
 </div>
 
 <!-- SPECS -->
@@ -589,7 +598,12 @@ function cpkInfo(cpk) {
 
 function fmt(v,d=4){ return (v===null||v===undefined||isNaN(v))?"—":Number(v).toFixed(d); }
 
-function allData(){ return [...BD_BASE,...savedLots]; }
+function allData(){
+  // Supabase prioritaire — déduplication par (Lot + Statut) car même lot peut avoir IPC et Libération
+  const supaKeys = new Set(savedLots.map(r => r.Lot + '|' + r.Statut));
+  const baseOnly = BD_BASE.filter(r => !supaKeys.has(r.Lot + '|' + r.Statut));
+  return [...baseOnly, ...savedLots];
+}
 
 function getRef(code){ return REF_DATA.find(r=>r.Code===code); }
 
@@ -616,7 +630,14 @@ function showPage(id){
     }, 100);
   }
   if(id==='specs') renderSpecs();
-  if(id==='analyse') { populateAnalyseDropdowns(); onFilterChange(); }
+  if(id==='analyse'){
+    populateAnalyseDropdowns(); onFilterChange();
+    setTimeout(()=>{
+      const sc=document.getElementById('lots-scroll');
+      const btn=document.getElementById('btn-lots-top');
+      if(sc&&btn) sc.onscroll=()=>{ btn.style.display=sc.scrollTop>100?'flex':'none'; };
+    },100);
+  }
   if(id==='saisie') populateSaisieDropdowns();
   if(id==='audit') loadAuditLogs();
 }
@@ -1012,7 +1033,14 @@ function onFilterChange(){
   // Chart
   document.getElementById('chart-title-text').textContent=`Carte de contrôle — ${param}${unit?' ('+unit+')':''} · ${code}`;
   document.getElementById('chart-nc-badge').innerHTML=ncPts.length>0?`<span class="badge b-red">⚠️ ${ncPts.length} hors limites</span>`:'';
-  const chartPts=filtered.filter(r=>r[param]!==null&&r[param]!==undefined&&!isNaN(r[param]));
+  const chartPts=filtered
+    .filter(r=>r[param]!==null&&r[param]!==undefined&&!isNaN(r[param]))
+    .sort((a,b)=>{
+      // Tri par DateFab d'abord, puis DateLib, puis numéro de lot
+      const da = a.DateFab||a.DateLib||a.Lot||'';
+      const db = b.DateFab||b.DateLib||b.Lot||'';
+      return da.localeCompare(db);
+    });
   renderChart(chartPts,param,lim,stats);
 
   // Table
@@ -1022,7 +1050,8 @@ function onFilterChange(){
     const v=r[param]; const nc=lim&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss);
     return `<tr class="${nc?'nc-row':''}">
       <td class="mono">${r.Lot}</td>
-      <td style="color:var(--text3)">${r.DateLib||'—'}</td>
+      <td style="color:var(--text3);font-size:11px">${r.DateFab||'—'}</td>
+      <td style="color:var(--text3);font-size:11px">${r.DateLib||'—'}</td>
       <td class="tr mono" style="font-weight:600;color:${nc?'var(--danger)':'var(--text)'}">${fmt(v,4)}${nc?' ⚠️':''}</td>
       <td class="tc"><span class="badge ${nc?'b-red':'b-green'}">${nc?'NC':'C'}</span></td>
     </tr>`;
@@ -1479,14 +1508,44 @@ async function renderUsersList(){
       <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0">${initials}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px">${u.nom} ${isMe?'<span style="font-size:10px;color:var(--accent)">(vous)</span>':''}</div>
-        <div style="font-size:11px;color:var(--text3)">${u.login} · <span class="badge ${u.role==='admin'?'b-blue':'b-gray'}">${u.role==='admin'?'Administrateur':'Collaborateur'}</span></div>
+        <div style="font-size:11px;color:var(--text3)">${u.login}${u.email?' · '+u.email:''} · <span class="badge ${u.role==='admin'?'b-blue':'b-gray'}">${u.role==='admin'?'Administrateur':'Collaborateur'}</span></div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" title="Envoyer les identifiants par mail" onclick="sendCredentialsMail('${u.login}','${u.nom}','${u.role}','${u.email||''}')">✉️</button>
         <button class="btn btn-secondary btn-sm" onclick="editUser('${u.login}')">✏️</button>
         ${!isMe?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.login}')">🗑</button>`:''}
       </div>
     </div>`;
   }).join('');
+}
+
+function sendCredentialsMail(login, nom, role, email=''){
+  const appUrl = window.location.origin + window.location.pathname;
+  const mdpDefaut = role === 'admin' ? 'Admin2025!' : 'Collab2025';
+  const dest = email || login; // utilise l'email si dispo, sinon le login
+
+  const sujet = encodeURIComponent('Accès à l\'application Assurance Qualité — ARWAMEDIC');
+  const corps = encodeURIComponent(
+`Bonjour ${nom},
+
+Votre compte a été créé sur l'application Assurance Qualité ARWAMEDIC.
+
+Vos identifiants de connexion :
+  • Login       : ${login}
+  • Mot de passe: ${mdpDefaut}
+  • Rôle        : ${role === 'admin' ? 'Administrateur' : 'Collaborateur'}
+
+Accéder à l'application :
+${appUrl}
+
+⚠️ Pour des raisons de sécurité, merci de changer votre mot de passe dès la première connexion (bouton 🔑 en haut à droite).
+
+Cordialement,
+${currentUser?.nom || 'L\'équipe Assurance Qualité'}
+`);
+
+  window.location.href = `mailto:${dest}?subject=${sujet}&body=${corps}`;
+  logAction('utilisateur', \`Identifiants envoyés par mail à \${nom} (\${login})\`);
 }
 
 async function editUser(login){
@@ -1497,6 +1556,7 @@ async function editUser(login){
   document.getElementById('u-login').value = u.login;
   document.getElementById('u-login').readOnly = true;
   document.getElementById('u-nom').value = u.nom;
+  document.getElementById('u-email').value = u.email||'';
   document.getElementById('u-pwd').value = '';
   document.getElementById('u-pwd').placeholder = 'Laisser vide = inchangé';
   document.getElementById('u-role').value = u.role;
@@ -1508,6 +1568,7 @@ function resetUserForm(){
   document.getElementById('u-login').value='';
   document.getElementById('u-login').readOnly=false;
   document.getElementById('u-nom').value='';
+  document.getElementById('u-email').value='';
   document.getElementById('u-pwd').value='';
   document.getElementById('u-pwd').placeholder='Mot de passe';
   document.getElementById('u-role').value='user';
@@ -1517,6 +1578,7 @@ function resetUserForm(){
 async function saveUser(){
   const login = document.getElementById('u-login').value.trim().toLowerCase();
   const nom   = document.getElementById('u-nom').value.trim();
+  const email = document.getElementById('u-email').value.trim().toLowerCase();
   const pwd   = document.getElementById('u-pwd').value;
   const role  = document.getElementById('u-role').value;
   const err   = document.getElementById('u-err');
@@ -1526,12 +1588,12 @@ async function saveUser(){
   let users = loadUsers();
 
   if(editingLogin){
-    const updates = {nom, role};
+    const updates = {nom, role, email};
     if(pwd){ updates.hash = await sha256(pwd); }
     await sbUpdate('utilisateurs', {login: editingLogin}, updates);
     notify('Utilisateur modifié !');
     if(currentUser.login===editingLogin){
-      currentUser = {...currentUser, nom, role};
+      currentUser = {...currentUser, nom, role, email};
       updateHeaderUser(currentUser);
       applyRoleUI();
     }
@@ -1540,7 +1602,7 @@ async function saveUser(){
     const existingUsers = await loadUsers();
     if(existingUsers.find(u=>u.login===login)){ err.style.display='block'; err.textContent='Cet identifiant existe déjà.'; return; }
     const hash = await sha256(pwd);
-    await sbInsert('utilisateurs', {login, hash, nom, role});
+    await sbInsert('utilisateurs', {login, hash, nom, role, email});
     notify('Utilisateur ajouté !');
   }
 
@@ -1744,6 +1806,7 @@ async function clearAuditLog(){
     <div class="form-grid">
       <div class="fg-form"><label>Identifiant *</label><input type="text" id="u-login" placeholder="ex: m.dupont"></div>
       <div class="fg-form"><label>Nom complet *</label><input type="text" id="u-nom" placeholder="ex: M. Dupont"></div>
+      <div class="fg-form"><label>Email</label><input type="email" id="u-email" placeholder="ex: m.dupont@arwamedic.com"></div>
       <div class="fg-form"><label>Mot de passe *</label><input type="password" id="u-pwd" placeholder="Laisser vide = inchangé"></div>
       <div class="fg-form"><label>Rôle</label>
         <select id="u-role">
