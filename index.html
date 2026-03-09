@@ -1077,47 +1077,54 @@ document.getElementById('modal-produit').addEventListener('click',e=>{ if(e.targ
 let currentUser = null;
 
 function initNetlifyAuth(){
-  // Attendre que netlifyIdentity soit disponible
-  if(typeof window.netlifyIdentity === 'undefined'){
-    console.warn('Netlify Identity non chargé — mode dev');
-    const devUser = {email:'dev@local', user_metadata:{full_name:'Mode Dev'}, app_metadata:{roles:['admin']}};
-    currentUser = devUser;
-    updateHeaderUser(devUser);
-    applyRoleUI();
-    return;
-  }
+  // Retry jusqu'à ce que netlifyIdentity soit disponible (max 5s)
+  let attempts = 0;
+  function tryInit(){
+    attempts++;
+    const identity = window.netlifyIdentity;
+    if(!identity){
+      if(attempts < 50){ setTimeout(tryInit, 100); return; }
+      // Mode dev — widget non disponible
+      console.warn('Netlify Identity non disponible — mode dev');
+      const devUser = {email:'dev@local', user_metadata:{full_name:'Mode Dev'}, app_metadata:{roles:['admin']}};
+      currentUser = devUser;
+      updateHeaderUser(devUser);
+      applyRoleUI();
+      return;
+    }
 
-  const identity = window.netlifyIdentity;
-  const hash = window.location.hash;
-  const hasToken = hash.includes('invite_token=') || hash.includes('recovery_token=') || hash.includes('confirmation_token=');
+    const hash = window.location.hash;
+    const hasToken = hash.includes('invite_token=') || hash.includes('recovery_token=') || hash.includes('confirmation_token=');
 
-  identity.on('init', user => {
-    if(user){
+    identity.on('init', user => {
+      if(user){
+        currentUser = user;
+        updateHeaderUser(user);
+        applyRoleUI();
+      } else {
+        identity.open(hasToken ? undefined : 'login');
+      }
+    });
+
+    identity.on('login', user => {
+      identity.close();
       currentUser = user;
       updateHeaderUser(user);
       applyRoleUI();
-    } else {
-      identity.open(hasToken ? undefined : 'login');
-    }
-  });
+      notify(`Bienvenue, ${getUserName(user)} !`);
+    });
 
-  identity.on('login', user => {
-    identity.close();
-    currentUser = user;
-    updateHeaderUser(user);
-    applyRoleUI();
-    notify(`Bienvenue, ${getUserName(user)} !`);
-  });
+    identity.on('logout', () => {
+      currentUser = null;
+      applyRoleUI();
+      identity.open('login');
+    });
 
-  identity.on('logout', () => {
-    currentUser = null;
-    applyRoleUI();
-    identity.open('login');
-  });
+    identity.on('error', err => console.error('Netlify Identity error:', err));
 
-  identity.on('error', err => console.error('Netlify Identity error:', err));
-
-  identity.init({ APIUrl: 'https://product-quality-review.netlify.app/.netlify/identity' });
+    identity.init({ APIUrl: 'https://product-quality-review.netlify.app/.netlify/identity' });
+  }
+  tryInit();
 }
 
 function getUserName(user){
