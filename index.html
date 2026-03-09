@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contrôle Qualité — Production</title>
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--accent:#0369a1;--accent-light:#e0f2fe;--accent-dark:#075985;--success:#059669;--success-light:#d1fae5;--warning:#d97706;--warning-light:#fef3c7;--danger:#dc2626;--danger-light:#fee2e2;--purple:#7c3aed;--purple-light:#ede9fe;--mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--r:10px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shm:0 4px 12px rgba(0,0,0,.10)}
@@ -1077,10 +1077,9 @@ document.getElementById('modal-produit').addEventListener('click',e=>{ if(e.targ
 let currentUser = null;
 
 function initNetlifyAuth(){
-  const identity = window.netlifyIdentity;
-  if(!identity){
-    // Mode dev local — simuler un admin
-    console.warn('Netlify Identity non chargé — mode développement');
+  // Attendre que netlifyIdentity soit disponible
+  if(typeof window.netlifyIdentity === 'undefined'){
+    console.warn('Netlify Identity non chargé — mode dev');
     const devUser = {email:'dev@local', user_metadata:{full_name:'Mode Dev'}, app_metadata:{roles:['admin']}};
     currentUser = devUser;
     updateHeaderUser(devUser);
@@ -1088,19 +1087,17 @@ function initNetlifyAuth(){
     return;
   }
 
-  // ⚡ Intercepte les tokens d'invitation et de reset de mot de passe
-  // Netlify envoie des URLs avec #invite_token=xxx ou #recovery_token=xxx
-  // Le widget doit être initialisé AVANT de vérifier l'utilisateur courant
+  const identity = window.netlifyIdentity;
+  const hash = window.location.hash;
+  const hasToken = hash.includes('invite_token=') || hash.includes('recovery_token=') || hash.includes('confirmation_token=');
+
   identity.on('init', user => {
     if(user){
       currentUser = user;
       updateHeaderUser(user);
       applyRoleUI();
     } else {
-      // Pas de session active — ouvre le widget
-      // Si un token est présent dans l'URL (#invite_token, #recovery_token, #confirmation_token)
-      // le widget l'intercepte automatiquement et affiche le formulaire de définition de mot de passe
-      identity.open();
+      identity.open(hasToken ? undefined : 'login');
     }
   });
 
@@ -1115,12 +1112,11 @@ function initNetlifyAuth(){
   identity.on('logout', () => {
     currentUser = null;
     applyRoleUI();
-    identity.open();
+    identity.open('login');
   });
 
   identity.on('error', err => console.error('Netlify Identity error:', err));
 
-  // Init déclenche l'événement 'init' ci-dessus
   identity.init({ APIUrl: 'https://product-quality-review.netlify.app/.netlify/identity' });
 }
 
