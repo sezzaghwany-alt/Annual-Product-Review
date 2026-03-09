@@ -1088,16 +1088,21 @@ function initNetlifyAuth(){
     return;
   }
 
-  identity.init();
-
-  const user = identity.currentUser();
-  if(user){
-    currentUser = user;
-    updateHeaderUser(user);
-    applyRoleUI();
-  } else {
-    identity.open();
-  }
+  // ⚡ Intercepte les tokens d'invitation et de reset de mot de passe
+  // Netlify envoie des URLs avec #invite_token=xxx ou #recovery_token=xxx
+  // Le widget doit être initialisé AVANT de vérifier l'utilisateur courant
+  identity.on('init', user => {
+    if(user){
+      currentUser = user;
+      updateHeaderUser(user);
+      applyRoleUI();
+    } else {
+      // Pas de session active — ouvre le widget
+      // Si un token est présent dans l'URL (#invite_token, #recovery_token, #confirmation_token)
+      // le widget l'intercepte automatiquement et affiche le formulaire de définition de mot de passe
+      identity.open();
+    }
+  });
 
   identity.on('login', user => {
     identity.close();
@@ -1114,6 +1119,9 @@ function initNetlifyAuth(){
   });
 
   identity.on('error', err => console.error('Netlify Identity error:', err));
+
+  // Init déclenche l'événement 'init' ci-dessus
+  identity.init();
 }
 
 function getUserName(user){
