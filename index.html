@@ -306,12 +306,33 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
   <div class="sg" id="stat-grid"></div>
   <div class="sg2" id="stat-grid2"></div>
   <div class="chart-card">
-    <div class="chart-title"><span id="chart-title-text">Carte de contrôle</span><span id="chart-nc-badge"></span></div>
+    <div class="chart-title">
+      <span id="chart-title-text">Carte de contrôle</span>
+      <span id="chart-nc-badge"></span>
+      <button id="btn-ai-analyse" onclick="analyseWithAI()"
+        style="margin-left:auto;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;
+        border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
+        display:flex;align-items:center;gap:7px;transition:all .2s;box-shadow:0 2px 8px #6366f140"
+        onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px #6366f155'"
+        onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px #6366f140'">
+        🤖 Interpréter avec l'IA
+      </button>
+    </div>
     <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
   </div>
-  <div class="interp-card" id="interp-card" style="display:none">
-    <div class="interp-title">Interprétation automatique</div>
-    <div class="interp-text" id="interp-text"></div>
+  <div class="interp-card" id="interp-card" style="display:none;border:1px solid #6366f140;background:linear-gradient(135deg,#6366f112,#8b5cf610);border-radius:12px;padding:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">🤖</div>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:var(--text)">Interprétation IA</div>
+          <div style="font-size:11px;color:var(--text3)">Analyse par Claude · Assurance Qualité Pharmaceutique</div>
+        </div>
+      </div>
+      <button onclick="document.getElementById('interp-card').style.display='none'"
+        style="background:rgba(99,102,241,.1);border:none;cursor:pointer;color:#6366f1;font-size:14px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="interp-text" style="font-size:13.5px;line-height:1.7;color:var(--text)"></div>
   </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="card-header" style="padding:12px 18px;border-bottom:1px solid var(--border)">Données des lots</div>
@@ -386,14 +407,17 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
         <div class="card-header" id="saved-lots-header" style="margin:0;padding:0;border:none">Lots saisis</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <div class="search-bar" style="width:160px"><input type="text" id="saved-search-lot" placeholder="N° lot..." oninput="filterSavedLots()" style="padding:5px 10px;font-size:12px"></div>
-          <div class="search-bar" style="width:130px"><input type="text" id="saved-search-code" placeholder="Code produit..." oninput="filterSavedLots()" style="padding:5px 10px;font-size:12px"></div>
-          <select id="saved-search-statut" onchange="filterSavedLots()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card)">
+          <input type="text" id="saved-search-lot" placeholder="🔍 N° lot..." oninput="filterSavedLots()"
+            style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);width:150px;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <input type="text" id="saved-search-code" placeholder="🔍 Code produit..." oninput="filterSavedLots()"
+            style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);width:170px;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <select id="saved-search-statut" onchange="filterSavedLots()"
+            style="font-size:13px;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer;outline:none">
             <option value="">Tous statuts</option>
             <option value="IPC">IPC</option>
             <option value="Libération">Libération</option>
           </select>
-          <button class="btn btn-secondary" style="font-size:11px;padding:4px 8px" onclick="clearSavedFilters()">✕ Effacer</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="clearSavedFilters()">✕ Effacer</button>
         </div>
       </div>
       <div id="saved-lots-scroll" style="max-height:380px;overflow-y:auto;overflow-x:auto">
@@ -628,6 +652,7 @@ function cpkInfo(cpk) {
 }
 
 function fmt(v,d=4){ return (v===null||v===undefined||isNaN(v))?"—":Number(v).toFixed(d); }
+function fmtDate(s){ if(!s) return '—'; try{ const d=new Date(s); if(isNaN(d)) return s; return d.toLocaleDateString('fr-FR'); } catch(e){ return s; } }
 
 function allData(){
   // Supabase prioritaire — déduplication par (Lot + Statut) car même lot peut avoir IPC et Libération
@@ -1307,9 +1332,9 @@ function filterSavedLots(){
   document.getElementById('saved-tbody').innerHTML = filtered.map(l=>`<tr>
     <td class="mono" style="color:var(--accent);font-weight:600">${l.Code}</td>
     <td class="mono">${l.Lot}</td>
-    <td style="color:var(--text3)">${l.DateFab||'—'}</td>
-    <td style="color:var(--text3)">${l.DateLib||'—'}</td>
-    <td style="color:var(--text3)">${l.DatePer||'—'}</td>
+    <td style="color:var(--text3)">${fmtDate(l.DateFab)}</td>
+    <td style="color:var(--text3)">${fmtDate(l.DateLib)}</td>
+    <td style="color:var(--text3)">${fmtDate(l.DatePer)}</td>
     <td><span class="badge ${l.Statut==='Libération'?'b-green':'b-blue'}">${l.Statut}</span></td>
     <td class="tc admin-only"><button class="action-btn" style="background:var(--purple-light);color:var(--purple)" onclick="openEditLot(${l._idx})">✏️ Modifier</button></td>
   </tr>`).join('');
@@ -1980,6 +2005,135 @@ async function saveEditLot(){
   renderSavedLots();
   updateAlertBadge();
 }
+
+// ══════════════════════════════════════════════════
+// ANALYSE IA — Interprétation des graphiques
+// ══════════════════════════════════════════════════
+async function analyseWithAI(){
+  const btn = document.getElementById('btn-ai-analyse');
+  const card = document.getElementById('interp-card');
+  const txt  = document.getElementById('interp-text');
+  if(!btn || !txt) return;
+
+  // Collecter les données du graphique actuel
+  const code   = document.getElementById('f-code')?.value;
+  const param  = document.getElementById('f-param')?.value;
+  const statut = document.getElementById('f-statut')?.value;
+  const ref    = getRef(code);
+  const lim    = getLimits(param, ref?.[param]??null, ref?.Type||'');
+
+  const data = allData().filter(r => r.Code===code && r.Statut===statut && r[param]!==null && r[param]!==undefined && !isNaN(r[param]));
+  if(data.length < 3){ notify('Pas assez de données pour une analyse IA.','error'); return; }
+
+  const vals = data.map(r => parseFloat(r[param])).filter(v => !isNaN(v));
+  const n = vals.length;
+  const mean = vals.reduce((a,b)=>a+b,0)/n;
+  const std  = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/(n-1));
+  const lci  = mean - 3*std;
+  const lcs  = mean + 3*std;
+  const Cp   = lim ? (lim.lss - (lim.lsi??lim.lss-6*std)) / (6*std) : null;
+  const Cpk  = lim ? Math.min((lim.lss-mean)/(3*std), lim.lsi!==null?(mean-lim.lsi)/(3*std):Infinity) : null;
+  const nc   = vals.filter(v => lim && ((lim.lsi!==null&&v<lim.lsi)||v>lim.lss)).length;
+
+  // Préparer le prompt
+  const prompt = `Tu es un expert en assurance qualité pharmaceutique spécialisé BPF/ICH Q10/ISO 13485. Analyse les résultats statistiques suivants pour des solutions pharmaceutiques (dialyse/poches stériles) et fournis une interprétation structurée en français :
+
+Produit : ${ref?.Designation || code} (${ref?.Type || ''})
+Paramètre : ${param}
+Statut : ${statut}
+Nombre de lots : ${n}
+Moyenne : ${mean.toFixed(3)}
+Écart-type : ${std.toFixed(3)}
+LCI (μ-3σ) : ${lci.toFixed(3)} | LCS (μ+3σ) : ${lcs.toFixed(3)}
+${lim ? `LSI spéc : ${lim.lsi!==null?lim.lsi:'N/A'} | LSS spéc : ${lim.lss}` : 'Pas de spécification définie'}
+${Cp!==null ? `Cp : ${Cp.toFixed(3)} | Cpk : ${Cpk.toFixed(3)}` : ''}
+Lots non-conformes : ${nc} / ${n} (${((nc/n)*100).toFixed(1)}%)
+Tendance (5 derniers lots) : ${vals.slice(-5).map(v=>v.toFixed(2)).join(', ')}
+
+Fournis en format markdown :
+### 1. État du procédé
+Capable / À surveiller / Non capable avec justification Cp/Cpk (Cp>1.33=excellent, 1.0-1.33=acceptable, <1.0=non capable)
+
+### 2. Analyse statistique
+Points clés : dérive, tendance, dispersion, valeurs aberrantes
+
+### 3. Conformité réglementaire
+Risques BPF/patients si applicable
+
+### 4. Actions recommandées
+2-3 actions concrètes et priorisées
+
+Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour les valeurs numériques clés.`;
+
+  // Afficher état chargement
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Analyse en cours...';
+  card.style.display = 'block';
+  txt.innerHTML = '<div style="color:var(--text3);font-size:13px">⏳ L'IA analyse vos données...</div>';
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const json = await res.json();
+    const reply = json.content?.[0]?.text || 'Pas de réponse.';
+
+    // Render markdown-like formatting
+    const rendered = reply
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^### (.+)$/gm, '<h4 style="margin:10px 0 4px;color:var(--accent)">$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3 style="margin:12px 0 4px">$1</h3>')
+      .replace(/^# (.+)$/gm, '<h3 style="margin:12px 0 4px">$1</h3>')
+      .replace(/^(\d+)\. (.+)$/gm, '<div style="margin:5px 0"><strong>$1.</strong> $2</div>')
+      .replace(/^[-•] (.+)$/gm, '<div style="margin:3px 0;padding-left:12px">• $1</div>')
+      .replace(/
+
+/g, '<br><br>')
+      .replace(/
+/g, '<br>');
+
+    // Badge état procédé
+    const lo = reply.toLowerCase();
+    const statBadge = lo.includes('non capable') || lo.includes('non-capable') ?
+      '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">⛔ Non capable</span>'
+      : lo.includes('surveiller') || lo.includes('vigilance') || lo.includes('à surveiller') ?
+      '<span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">⚠️ À surveiller</span>'
+      : lo.includes('capable') ?
+      '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">✅ Procédé capable</span>' : '';
+
+    const rendered = reply
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
+      .replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13px;color:#6366f1;margin:14px 0 5px;padding-bottom:3px;border-bottom:1px solid #6366f130">$1</div>')
+      .replace(/^## (.+)$/gm, '<div style="font-weight:700;font-size:14px;margin:14px 0 5px">$1</div>')
+      .replace(/^# (.+)$/gm, '<div style="font-weight:700;font-size:15px;margin:14px 0 5px">$1</div>')
+      .replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:8px;margin:6px 0;align-items:baseline"><span style="min-width:20px;height:20px;background:#6366f1;color:#fff;border-radius:50%;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">$1</span><span>$2</span></div>')
+      .replace(/^[-•] (.+)$/gm, '<div style="margin:5px 0;padding-left:14px;position:relative"><span style="position:absolute;left:0;color:#6366f1;font-weight:700">›</span>$1</div>')
+      .replace(/\n\n/g, '<br>')
+      .replace(/\n/g, '<br>');
+
+    txt.innerHTML = (statBadge ? `<div style="margin-bottom:12px">${statBadge}</div>` : '') +
+      `<div style="font-size:13.5px;line-height:1.75">${rendered}</div>
+      <div style="margin-top:14px;font-size:10px;color:var(--text3);border-top:1px solid #6366f120;padding-top:8px;display:flex;justify-content:space-between">
+        <span>🤖 Analyse par Claude AI (Anthropic)</span>
+        <span>${new Date().toLocaleString('fr-FR')}</span>
+      </div>`;
+
+    logAction('analyse', `Analyse IA : ${code} — ${param} (${statut})`);
+  } catch(e) {
+    txt.innerHTML = `<div style="color:var(--danger)">❌ Erreur : ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🤖 Interpréter avec l\'IA';
+  }
+}
 </script>
 
 <!-- MODAL GESTION UTILISATEURS -->
@@ -2015,8 +2169,8 @@ async function saveEditLot(){
 
 
 <!-- MODAL MODIFICATION LOT -->
-<div id="modal-edit-lot" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center;overflow-y:auto">
-  <div style="background:var(--card);border-radius:14px;padding:28px;width:620px;max-width:96vw;margin:20px auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+<div id="modal-edit-lot" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,.75);backdrop-filter:blur(4px);z-index:3000;align-items:center;justify-content:center;overflow-y:auto">
+  <div style="background:var(--card);border-radius:16px;padding:32px;width:660px;max-width:96vw;margin:20px auto;box-shadow:0 24px 80px rgba(0,0,0,.6);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <h3 style="margin:0;font-size:16px">✏️ Modifier le lot <span id="edit-lot-title" style="color:var(--accent)"></span></h3>
       <button onclick="closeEditLot()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3)">✕</button>
