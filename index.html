@@ -2086,19 +2086,6 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
     const json = await res.json();
     const reply = json.content?.[0]?.text || 'Pas de réponse.';
 
-    // Render markdown-like formatting
-    const rendered = reply
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^### (.+)$/gm, '<h4 style="margin:10px 0 4px;color:var(--accent)">$1</h4>')
-      .replace(/^## (.+)$/gm, '<h3 style="margin:12px 0 4px">$1</h3>')
-      .replace(/^# (.+)$/gm, '<h3 style="margin:12px 0 4px">$1</h3>')
-      .replace(/^(\d+)\. (.+)$/gm, '<div style="margin:5px 0"><strong>$1.</strong> $2</div>')
-      .replace(/^[-•] (.+)$/gm, '<div style="margin:3px 0;padding-left:12px">• $1</div>')
-      .replace(/
-
-/g, '<br><br>')
-      .replace(/
-/g, '<br>');
 
     // Badge état procédé
     const lo = reply.toLowerCase();
