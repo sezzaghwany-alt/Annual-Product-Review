@@ -309,19 +309,9 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     <div class="chart-title">
       <span id="chart-title-text">Carte de contrôle</span>
       <span id="chart-nc-badge"></span>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <button onclick="configApiKey()" title="Configurer la clé API"
-          style="background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--text3)"
-          onmouseover="this.style.borderColor='#6366f1'" onmouseout="this.style.borderColor='var(--border)'">🔑</button>
-        <button id="btn-ai-analyse" onclick="analyseWithAI()"
-          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;
-          border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
-          display:flex;align-items:center;gap:7px;transition:all .2s;box-shadow:0 2px 8px #6366f140"
-          onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px #6366f155'"
-          onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px #6366f140'">
-          🤖 Interpréter avec l'IA
-        </button>
-      </div>
+      <button id="btn-ai-analyse" onclick="analyseWithAI()" style="margin-left:auto;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s;box-shadow:0 2px 8px #6366f140" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px #6366f155'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px #6366f140'">
+        🤖 Interpréter avec l'IA
+      </button>
     </div>
     <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
   </div>
@@ -2014,28 +2004,11 @@ async function saveEditLot(){
 // ══════════════════════════════════════════════════
 // ANALYSE IA — Interprétation des graphiques
 // ══════════════════════════════════════════════════
-function configApiKey(){
-  const current = localStorage.getItem('aq_apikey')||'';
-  const key = prompt('Clé API Anthropic (sk-ant-...)\nElle est stockée localement dans votre navigateur.', current);
-  if(key === null) return; // annulé
-  if(key.trim()) {
-    localStorage.setItem('aq_apikey', key.trim());
-    notify('Clé API sauvegardée ✓');
-  } else {
-    localStorage.removeItem('aq_apikey');
-    notify('Clé API supprimée', 'warning');
-  }
-}
-
 async function analyseWithAI(){
   const btn = document.getElementById('btn-ai-analyse');
   const card = document.getElementById('interp-card');
   const txt  = document.getElementById('interp-text');
   if(!btn || !txt) return;
-  if(!localStorage.getItem('aq_apikey')){
-    notify('Clé API manquante — cliquez sur 🔑 pour la configurer.','error');
-    return;
-  }
 
   // Collecter les données du graphique actuel
   const code   = document.getElementById('f-code')?.value;
@@ -2097,7 +2070,7 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': (localStorage.getItem('aq_apikey')||''), 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
