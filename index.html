@@ -530,7 +530,10 @@ REF_DATA.forEach(r => {
 
 let savedLots = [];
 let mainChart = null;
-let editingCode = null; // for modal
+let editingCode = null;
+let auditAll = [];
+let auditPage = 1;
+const AUDIT_PER_PAGE = 50; // for modal
 
 // ═══════════════════════════════════════════════════
 // FIXED LIMITS — éditable par l'utilisateur
@@ -1736,7 +1739,9 @@ async function loadAuditLogs(){
   const countEl = document.getElementById('audit-count');
   if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">⏳ Chargement...</td></tr>';
   try {
+    console.log('Fetching audit_logs...');
     const rows = await sbGet('audit_logs');
+    console.log('audit_logs rows:', rows?.length, rows);
     auditAll = (rows||[]).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
     // Peupler le filtre utilisateurs
     const users = [...new Set(auditAll.map(r=>r.user_login))].filter(Boolean);
@@ -1751,10 +1756,10 @@ async function loadAuditLogs(){
     }
     renderAuditLog();
   } catch(e){
-    console.error('loadAuditLogs:', e);
-    // La table n'existe probablement pas encore
-    if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger)">⚠️ Table audit_logs introuvable.<br><small>Exécutez le script <strong>audit_logs_table.sql</strong> dans Supabase.</small></td></tr>';
-    if(countEl) countEl.textContent = 'Table manquante';
+    console.error('loadAuditLogs error:', e);
+    const msg = e?.message || JSON.stringify(e) || 'Erreur inconnue';
+    if(tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger)">⚠️ Erreur: ${msg}</td></tr>`;
+    if(countEl) countEl.textContent = 'Erreur de chargement';
   }
 }
 
