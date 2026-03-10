@@ -152,6 +152,31 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 .modal2-overlay.show{display:flex}
 .modal2{background:#fff;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.15);width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:28px}
 .modal2-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+
+/* ── AIDE ────────────────────────────────── */
+.help-nav-btn {
+  padding:6px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;
+  border:1.5px solid var(--border);background:var(--card);color:var(--text3);
+  transition:all .15s;
+}
+.help-nav-btn:hover, .help-nav-btn.active {
+  background:var(--accent);color:#fff;border-color:var(--accent);
+}
+.help-section { display:none }
+.help-section.active { display:block }
+.help-h2 { font-size:16px;font-weight:700;color:var(--accent);margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid var(--accent)20; display:flex;align-items:center;gap:8px }
+.help-h3 { font-size:13px;font-weight:700;color:var(--text);margin:18px 0 8px }
+.help-table { width:100%;border-collapse:collapse;font-size:12.5px;margin:12px 0 }
+.help-table th { background:var(--accent);color:#fff;padding:8px 12px;text-align:left;font-weight:600 }
+.help-table td { padding:8px 12px;border-bottom:1px solid var(--border) }
+.help-table tr:nth-child(even) td { background:var(--bg) }
+.help-badge { display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin:2px }
+.help-box { background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:12px 0 }
+.help-box.info { border-left:4px solid var(--accent) }
+.help-box.warn { border-left:4px solid #f59e0b;background:#fef9ee }
+.help-box.tip  { border-left:4px solid #10b981;background:#f0fdf4 }
+.help-step { display:flex;gap:12px;margin:10px 0;align-items:flex-start }
+.help-step-num { min-width:28px;height:28px;background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px }
 </style>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='62' font-family='Arial'>🧪</text></svg>">
 </head>
@@ -247,6 +272,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     </div>
     <div class="user-avatar" id="header-avatar">?</div>
     <button class="nb" style="font-size:13px;padding:6px 11px;background:rgba(255,255,255,.12);color:#e0e0ff;border:1px solid rgba(255,255,255,.2);border-radius:7px;cursor:pointer" onclick="openChangePwd()" title="Changer mon mot de passe">🔑</button>
+    <button class="nb" style="font-size:13px;padding:6px 11px;background:rgba(99,102,241,.25);color:#c7d2fe;border:1px solid rgba(99,102,241,.4);border-radius:7px;cursor:pointer" onclick="openHelp()" title="Aide / Guide utilisateur">❓ Aide</button>
     <button class="nb" style="font-size:13px;padding:6px 11px;background:rgba(239,68,68,.25);color:#fca5a5;border:1px solid rgba(239,68,68,.4);border-radius:7px;cursor:pointer" onclick="doLogout()" title="Se déconnecter">⏻ Déconnexion</button>
   </div>
 </header>
@@ -2251,6 +2277,170 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
     btn.innerHTML = '🤖 Interpréter avec l\'IA';
   }
 }
+
+// ══════════════════════════════════════════════
+// AIDE — Guide utilisateur
+// ══════════════════════════════════════════════
+const HELP_SECTIONS = {
+  connexion: {
+    icon: '🔐', title: 'Connexion et accès',
+    html: `
+      <div class="help-box info"><b>URL :</b> <code>arwamedic-apr.sezzaghwany.workers.dev</code><br>Ouvrir depuis Chrome, Edge ou Firefox. Une connexion est requise à chaque session.</div>
+      <table class="help-table"><thead><tr><th>Rôle</th><th>Mot de passe par défaut</th><th>Droits</th></tr></thead><tbody>
+        <tr><td><span class="help-badge" style="background:#fef3c7;color:#d97706">Administrateur</span></td><td><code>Admin2025!</code></td><td>Accès complet : saisie, modification, spécifications, audit, gestion utilisateurs</td></tr>
+        <tr><td><span class="help-badge" style="background:#dcfce7;color:#16a34a">Collaborateur</span></td><td><code>Collab2025</code></td><td>Lecture et saisie de nouveaux lots uniquement</td></tr>
+      </tbody></table>
+      <div class="help-box warn">⚠️ <b>Changez les mots de passe par défaut</b> dès la première connexion via le bouton 🔑 en haut à droite.</div>
+    `
+  },
+  onglets: {
+    icon: '🗂️', title: 'Les 6 onglets',
+    html: `
+      <table class="help-table"><thead><tr><th>Onglet</th><th>Description</th></tr></thead><tbody>
+        <tr><td>🏠 <b>Tableau de bord</b></td><td>Vue globale : KPIs par produit (lots analysés, NC, Cpk moyen). Boutons Analyser et Modifier.</td></tr>
+        <tr><td>📊 <b>Analyse & Graphiques</b></td><td>Carte de contrôle interactive, statistiques (Cp, Cpk, moyenne, σ), filtres, interprétation IA.</td></tr>
+        <tr><td>📐 <b>Spécifications</b></td><td>Consultation et modification des spécifications par produit. Modification réservée aux admins.</td></tr>
+        <tr><td>✏️ <b>Saisie</b></td><td>Formulaire adaptatif selon le type de produit. Liste des lots saisis avec filtres. Modification (admin).</td></tr>
+        <tr><td>🔔 <b>Alertes</b></td><td>Liste des lots non-conformes avec détail des dépassements. Badge rouge = nombre d'alertes actives.</td></tr>
+        <tr><td>📋 <b>Audit</b></td><td>Journal complet : connexions, saisies, modifications avec valeurs avant/après. Export CSV et ZIP.</td></tr>
+      </tbody></table>
+    `
+  },
+  saisie: {
+    icon: '✏️', title: "Saisie d'un nouveau lot",
+    html: `
+      <div class="help-step"><div class="help-step-num">1</div><div>Cliquer sur l'onglet <b>Saisie</b> puis sur le bouton <b>+ Nouveau lot</b>.</div></div>
+      <div class="help-step"><div class="help-step-num">2</div><div>Sélectionner le <b>produit</b> — le formulaire s'adapte automatiquement au type de produit.</div></div>
+      <div class="help-step"><div class="help-step-num">3</div><div>Renseigner le <b>numéro de lot</b>, les dates (fabrication, libération, péremption) et le statut (IPC ou Libération).</div></div>
+      <div class="help-step"><div class="help-step-num">4</div><div>Saisir les <b>paramètres analytiques</b>. Les limites LSI/LSS s'affichent en temps réel à côté de chaque champ.</div></div>
+      <div class="help-step"><div class="help-step-num">5</div><div>Les valeurs <b>hors-limites</b> sont signalées immédiatement en rouge.</div></div>
+      <div class="help-step"><div class="help-step-num">6</div><div>Cliquer sur <b>Enregistrer le lot</b>. La saisie est sauvegardée sur Supabase.</div></div>
+      <div class="help-h3">Paramètres par type de produit</div>
+      <table class="help-table"><thead><tr><th>Type</th><th>Paramètres</th></tr></thead><tbody>
+        <tr><td><b>Solution Dialyse Acide</b></td><td>Sodium, Potassium, Calcium, Magnésium, Chlorures, Acétates, Glucose, pH, Poids, Rendement</td></tr>
+        <tr><td><b>Solution Dialyse Bicarbonate</b></td><td>Sodium, Chlorures, Bicarbonates, pH, Poids, Rendement</td></tr>
+        <tr><td><b>Cartouche</b></td><td>Bicarbonates, pH, Poids, Rendement</td></tr>
+        <tr><td><b>Poches stériles Chlorures</b></td><td>pH, Poids, Rendement, Chlorure de sodium, Osmolalité</td></tr>
+        <tr><td><b>Poches stériles Glucose</b></td><td>Glucose, pH, Poids, Rendement, Osmolalité, HMF</td></tr>
+      </tbody></table>
+    `
+  },
+  analyse: {
+    icon: '📊', title: 'Analyse, Graphiques et IA',
+    html: `
+      <p>L'onglet Analyse permet de visualiser l'évolution d'un paramètre dans le temps et d'évaluer la capabilité du procédé.</p>
+      <div class="help-h3">Indices de capabilité</div>
+      <table class="help-table"><thead><tr><th>Valeur</th><th>Interprétation</th></tr></thead><tbody>
+        <tr><td><span class="help-badge" style="background:#dcfce7;color:#16a34a">Cp > 1,33</span></td><td>Procédé très capable — excellente maîtrise</td></tr>
+        <tr><td><span class="help-badge" style="background:#fef3c7;color:#d97706">1,00 ≤ Cp ≤ 1,33</span></td><td>Procédé acceptable — surveillance recommandée</td></tr>
+        <tr><td><span class="help-badge" style="background:#fee2e2;color:#dc2626">Cp &lt; 1,00</span></td><td>Procédé non capable — action corrective requise</td></tr>
+        <tr><td><span class="help-badge" style="background:#fff7ed;color:#ea580c">Cpk &lt; Cp</span></td><td>Procédé décentré — vérifier le réglage</td></tr>
+      </tbody></table>
+      <div class="help-h3">🤖 Interprétation IA</div>
+      <div class="help-box tip">Le bouton <b>"🤖 Interpréter avec l'IA"</b> envoie les statistiques du graphique à Claude (Anthropic) qui génère une analyse en langage naturel avec :<br>
+        • État du procédé (capable / à surveiller / non capable)<br>
+        • Points critiques à signaler<br>
+        • Recommandations concrètes BPF
+      </div>
+      <div class="help-box warn">⚠️ La fonctionnalité IA nécessite un accès à <code>api.anthropic.com</code>. Si bloquée par l'antivirus, contacter l'IT pour ajouter une exception.</div>
+    `
+  },
+  audit: {
+    icon: '📋', title: 'Audit trail et sauvegarde',
+    html: `
+      <p>Chaque action est enregistrée automatiquement : connexions, saisies, modifications, suppressions.</p>
+      <div class="help-h3">Colonne Modifications (avant → après)</div>
+      <div class="help-box info">Pour chaque modification de lot ou de produit, les valeurs <span style="color:#dc2626;text-decoration:line-through">avant</span> et <span style="color:#16a34a;font-weight:700">après</span> sont affichées champ par champ.</div>
+      <div class="help-h3">💾 Sauvegarder tout (ZIP)</div>
+      <p>Le bouton <b>💾 Sauvegarder tout (ZIP)</b> exporte en une seule fois les 5 tables :</p>
+      <table class="help-table"><thead><tr><th>Fichier CSV</th><th>Contenu</th><th>Criticité</th></tr></thead><tbody>
+        <tr><td><code>lots.csv</code></td><td>Tous les lots avec paramètres analytiques</td><td><span class="help-badge" style="background:#fee2e2;color:#dc2626">🔴 Critique</span></td></tr>
+        <tr><td><code>produits.csv</code></td><td>Produits et spécifications</td><td><span class="help-badge" style="background:#fef3c7;color:#d97706">🟡 Important</span></td></tr>
+        <tr><td><code>utilisateurs.csv</code></td><td>Logins et rôles (sans mots de passe)</td><td><span class="help-badge" style="background:#fef3c7;color:#d97706">🟡 Important</span></td></tr>
+        <tr><td><code>limites_fixes.csv</code></td><td>pH, Osmolalité par type</td><td><span class="help-badge" style="background:#f0fdf4;color:#16a34a">🟢 Moyen</span></td></tr>
+        <tr><td><code>audit_logs.csv</code></td><td>Journal complet des actions</td><td><span class="help-badge" style="background:#f0fdf4;color:#16a34a">🟢 Moyen</span></td></tr>
+      </tbody></table>
+      <div class="help-box tip">✅ <b>Recommandation :</b> Effectuer une sauvegarde ZIP mensuelle et l'archiver sur SharePoint ou disque réseau.</div>
+    `
+  },
+  specs: {
+    icon: '📐', title: 'Gestion des spécifications',
+    html: `
+      <p>L'onglet Spécifications affiche tous les produits avec leurs limites analytiques. Les administrateurs peuvent modifier les spécifications.</p>
+      <table class="help-table"><thead><tr><th>Paramètre</th><th>Tolérance</th></tr></thead><tbody>
+        <tr><td><b>Sodium</b></td><td>±2,5% autour de la valeur cible</td></tr>
+        <tr><td><b>Paramètres chimiques</b></td><td>±5% autour de la valeur cible</td></tr>
+        <tr><td><b>Rendement</b></td><td>Fixe : 95% — 105%</td></tr>
+        <tr><td><b>pH</b></td><td>Limites fixes par type de produit</td></tr>
+        <tr><td><b>Osmolalité</b></td><td>Limites fixes par type de produit</td></tr>
+        <tr><td><b>Poids</b></td><td>±5% autour du poids cible par produit</td></tr>
+      </tbody></table>
+      <div class="help-box info">Toute modification de spécification est tracée dans l'audit avec les valeurs avant/après.</div>
+    `
+  },
+  users: {
+    icon: '👥', title: 'Gestion des utilisateurs (Admin)',
+    html: `
+      <p>Accessible depuis le bouton <b>👥 Utilisateurs</b> en haut à droite (administrateurs uniquement).</p>
+      <div class="help-step"><div class="help-step-num">+</div><div><b>Ajouter</b> un utilisateur : renseigner login, nom, rôle et email, puis cliquer Ajouter.</div></div>
+      <div class="help-step"><div class="help-step-num">🔑</div><div><b>Réinitialiser</b> le mot de passe d'un utilisateur via le bouton 🔑 sur sa ligne.</div></div>
+      <div class="help-step"><div class="help-step-num">✉️</div><div><b>Envoyer les identifiants</b> par email via le bouton ✉️ (ouvre Outlook avec un email pré-rempli).</div></div>
+      <div class="help-step"><div class="help-step-num">🗑</div><div><b>Supprimer</b> un utilisateur — impossible de supprimer le dernier administrateur.</div></div>
+      <div class="help-box warn">⚠️ Il doit toujours y avoir au moins un administrateur actif dans l'application.</div>
+    `
+  },
+  depannage: {
+    icon: '🔧', title: 'Dépannage',
+    html: `
+      <table class="help-table"><thead><tr><th>Problème</th><th>Solution</th></tr></thead><tbody>
+        <tr><td>Données non chargées au démarrage</td><td>Vérifier la connexion internet. L'app utilise les données embarquées si Supabase est inaccessible.</td></tr>
+        <tr><td>Erreur 401 sur l'IA</td><td>La clé API Anthropic est expirée. En générer une nouvelle sur <code>console.anthropic.com</code> et contacter l'administrateur.</td></tr>
+        <tr><td>IA bloquée (ERR_NETWORK_IO_SUSPENDED)</td><td>Kaspersky bloque <code>api.anthropic.com</code>. Demander à l'IT d'ajouter <code>*.anthropic.com</code> dans les exclusions.</td></tr>
+        <tr><td>Bouton Modifier grisé</td><td>Action réservée aux administrateurs.</td></tr>
+        <tr><td>Oubli de mot de passe</td><td>Un administrateur peut réinitialiser le mot de passe depuis le bouton 👥.</td></tr>
+        <tr><td>Perte de données</td><td>Utiliser le dernier fichier ZIP exporté depuis l'onglet Audit pour restaurer.</td></tr>
+      </tbody></table>
+      <div class="help-h3">Informations techniques</div>
+      <div class="help-box info">
+        <b>Hébergement :</b> Cloudflare Pages — <code>arwamedic-apr.sezzaghwany.workers.dev</code><br>
+        <b>Base de données :</b> Supabase (PostgreSQL) — <code>sthaazqccmtjzchsmrzu.supabase.co</code><br>
+        <b>IA :</b> Claude Sonnet 4 (Anthropic) — <code>api.anthropic.com</code>
+      </div>
+    `
+  }
+};
+
+function openHelp(section){
+  document.getElementById('modal-help').style.display='flex';
+  helpSection(section||'connexion');
+  document.body.style.overflow='hidden';
+}
+
+function closeHelp(){
+  document.getElementById('modal-help').style.display='none';
+  document.body.style.overflow='';
+}
+
+function helpSection(id){
+  // Update nav buttons
+  document.querySelectorAll('.help-nav-btn').forEach(b=>{
+    b.classList.toggle('active', b.id==='hn-'+id);
+  });
+  // Render content
+  const s = HELP_SECTIONS[id];
+  if(!s) return;
+  document.getElementById('help-content').innerHTML = `
+    <div class="help-h2">${s.icon} ${s.title}</div>
+    ${s.html}
+  `;
+}
+
+// Close on overlay click
+document.addEventListener('DOMContentLoaded', ()=>{
+  const mh = document.getElementById('modal-help');
+  if(mh) mh.addEventListener('click', e=>{ if(e.target===mh) closeHelp(); });
+});
+
 </script>
 
 <!-- MODAL GESTION UTILISATEURS -->
@@ -2310,6 +2500,47 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
       <button class="btn btn-secondary" style="flex:1" onclick="closeEditLot()">Annuler</button>
     </div>
   </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MODAL AIDE / GUIDE UTILISATEUR                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="modal-help" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,.8);backdrop-filter:blur(4px);z-index:4000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px">
+<div style="background:var(--card);border-radius:16px;max-width:860px;width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);border:1px solid var(--border)">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#0369a1,#0ea5e9);border-radius:16px 16px 0 0;padding:24px 28px;display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:48px;height:48px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px">🏥</div>
+      <div>
+        <div style="font-size:20px;font-weight:700;color:#fff">Guide Utilisateur — Application APR</div>
+        <div style="font-size:12px;color:#bae6fd;margin-top:2px">Assurance Qualité Pharmaceutique · ARWAMEDIC</div>
+      </div>
+    </div>
+    <button onclick="closeHelp()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+
+  <!-- Navigation sections -->
+  <div style="padding:20px 28px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="helpSection('connexion')"  class="help-nav-btn" id="hn-connexion">🔐 Connexion</button>
+    <button onclick="helpSection('onglets')"    class="help-nav-btn" id="hn-onglets">🗂️ Onglets</button>
+    <button onclick="helpSection('saisie')"     class="help-nav-btn" id="hn-saisie">✏️ Saisie</button>
+    <button onclick="helpSection('analyse')"    class="help-nav-btn" id="hn-analyse">📊 Analyse & IA</button>
+    <button onclick="helpSection('audit')"      class="help-nav-btn" id="hn-audit">📋 Audit & Sauvegarde</button>
+    <button onclick="helpSection('specs')"      class="help-nav-btn" id="hn-specs">📐 Spécifications</button>
+    <button onclick="helpSection('users')"      class="help-nav-btn" id="hn-users">👥 Utilisateurs</button>
+    <button onclick="helpSection('depannage')"  class="help-nav-btn" id="hn-depannage">🔧 Dépannage</button>
+  </div>
+
+  <!-- Content -->
+  <div id="help-content" style="padding:28px;min-height:400px;line-height:1.7;font-size:13.5px;color:var(--text)"></div>
+
+  <!-- Footer -->
+  <div style="padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:0 0 16px 16px">
+    <span style="font-size:11px;color:var(--text3)">Application APR v1.0 · Mars 2026 · ARWAMEDIC</span>
+    <button onclick="closeHelp()" class="btn btn-secondary" style="font-size:12px;padding:6px 16px">Fermer</button>
+  </div>
+</div>
 </div>
 </body>
 </html>
