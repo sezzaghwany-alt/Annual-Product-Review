@@ -2045,8 +2045,8 @@ Nombre de lots : ${n}
 Moyenne : ${mean.toFixed(3)}
 Écart-type : ${std.toFixed(3)}
 LCI (μ-3σ) : ${lci.toFixed(3)} | LCS (μ+3σ) : ${lcs.toFixed(3)}
-${lim ? `LSI spéc : ${lim.lsi!==null?lim.lsi:'N/A'} | LSS spéc : ${lim.lss}` : 'Pas de spécification définie'}
-${Cp!==null ? `Cp : ${Cp.toFixed(3)} | Cpk : ${Cpk.toFixed(3)}` : ''}
+${lim ? 'LSI spéc : '+(lim.lsi!==null?lim.lsi:'N/A')+' | LSS spéc : '+lim.lss : 'Pas de spécification définie'}
+${Cp!==null ? 'Cp : '+Cp.toFixed(3)+' | Cpk : '+Cpk.toFixed(3) : ''}
 Lots non-conformes : ${nc} / ${n} (${((nc/n)*100).toFixed(1)}%)
 Tendance (5 derniers lots) : ${vals.slice(-5).map(v=>v.toFixed(2)).join(', ')}
 
@@ -2069,7 +2069,7 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
   btn.disabled = true;
   btn.innerHTML = '⏳ Analyse en cours...';
   card.style.display = 'block';
-  txt.innerHTML = '<div style="color:var(--text3);font-size:13px">⏳ L'IA analyse vos données...</div>';
+  txt.innerHTML = '<div style="color:var(--text3);font-size:13px">⏳ L\'IA analyse vos données...</div>';
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
 
   try {
