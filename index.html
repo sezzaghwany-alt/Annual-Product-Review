@@ -160,7 +160,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
   <div class="lcard">
     <div class="llogo">
       <div class="lbadge">APR</div>
-      <div><div class="ltitle">Contrôle Qualité</div><div class="lsub">Paramètres de Production</div></div>
+      <div><div class="ltitle">Assurance Qualité</div><div class="lsub">Paramètres de Production</div></div>
     </div>
     <div id="lerr" class="lerr">Identifiants incorrects.</div>
     <label class="llabel">Identifiant</label>
@@ -1731,16 +1731,31 @@ let auditPage = 1;
 const AUDIT_PER_PAGE = 50;
 
 async function loadAuditLogs(){
+  // Afficher un indicateur de chargement
+  const tbody = document.getElementById('audit-tbody');
+  const countEl = document.getElementById('audit-count');
+  if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">⏳ Chargement...</td></tr>';
   try {
     const rows = await sbGet('audit_logs');
-    auditAll = rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    auditAll = (rows||[]).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    // Peupler le filtre utilisateurs
     const users = [...new Set(auditAll.map(r=>r.user_login))].filter(Boolean);
     const sel = document.getElementById('audit-user-filter');
     if(sel){
       sel.innerHTML = '<option value="">Tous</option>' + users.map(u=>`<option value="${u}">${u}</option>`).join('');
     }
+    if(auditAll.length === 0){
+      if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucun événement enregistré pour l'instant.<br><small>Les actions seront tracées à partir de maintenant.</small></td></tr>';
+      if(countEl) countEl.textContent = '0 événement';
+      return;
+    }
     renderAuditLog();
-  } catch(e){ console.error('loadAuditLogs:', e); }
+  } catch(e){
+    console.error('loadAuditLogs:', e);
+    // La table n'existe probablement pas encore
+    if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger)">⚠️ Table audit_logs introuvable.<br><small>Exécutez le script <strong>audit_logs_table.sql</strong> dans Supabase.</small></td></tr>';
+    if(countEl) countEl.textContent = 'Table manquante';
+  }
 }
 
 function renderAuditLog(){
