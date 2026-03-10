@@ -966,11 +966,35 @@ function saveProduct(){
   });
 
   if(editingCode){
+    // Capturer avant/après
+    const old = REF_DATA.find(r=>r.Code===editingCode)||{};
+    const avant = {}, apres = {};
+    const allFields = ['Désignation','Type','Sodium','Potassium','Calcium','Magnésium','Chlorures','Acétates','Glucose','Bicarbonates','Chlorure de sodium','Rendement'];
+    allFields.forEach(f => {
+      const ov = old[f]??null, nv = obj[f]??null;
+      if(String(ov) !== String(nv)){ avant[f]=ov!==null?ov:'—'; apres[f]=nv!==null?nv:'—'; }
+    });
+    // Comparer aussi les limites fixes pH/Poids/Osmolalité
+    ['pH','Poids','Osmolalité'].forEach(fp => {
+      const lsiEl=document.getElementById(`mfl-${fp}-lsi`), lssEl=document.getElementById(`mfl-${fp}-lss`);
+      if(!lsiEl||!lssEl) return;
+      const newLsi=lsiEl.value===''?null:parseFloat(lsiEl.value);
+      const newLss=lssEl.value===''?null:parseFloat(lssEl.value);
+      const cur = FIXED_LIMITS[fp]?.[type];
+      const oldLsi=cur?cur[0]:null, oldLss=cur?cur[1]:null;
+      if(String(oldLsi)!==String(newLsi)||String(oldLss)!==String(newLss)){
+        avant[`${fp} [LSI/LSS]`] = `${oldLsi??'—'} / ${oldLss??'—'}`;
+        apres[`${fp} [LSI/LSS]`] = `${newLsi??'—'} / ${newLss??'—'}`;
+      }
+    });
+    const diffCount = Object.keys(avant).length;
+    const diffStr = diffCount>0 ? JSON.stringify({avant,apres}) : '{}';
+
     const idx=REF_DATA.findIndex(r=>r.Code===editingCode);
     if(idx>=0) REF_DATA[idx]=obj;
     sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()},'code').catch(()=>{});
     notify('Produit modifié avec succès !');
-    logAction('produit', `Produit ${code} — ${desig} modifié`);
+    logAction('produit', `Produit ${code} — ${diffCount} champ(s) modifié(s)`, diffStr);
   } else {
     REF_DATA.push(obj);
     sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()},'code').catch(()=>{});
