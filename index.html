@@ -6,6 +6,7 @@
 <title>Assurance Qualité — ARWAMEDIC</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--accent:#0369a1;--accent-light:#e0f2fe;--accent-dark:#075985;--success:#059669;--success-light:#d1fae5;--warning:#d97706;--warning-light:#fef3c7;--danger:#dc2626;--danger-light:#fee2e2;--purple:#7c3aed;--purple-light:#ede9fe;--mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--r:10px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shm:0 4px 12px rgba(0,0,0,.10)}
@@ -470,7 +471,8 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div class="fg" style="min-width:130px"><label>Date fin</label>
         <input type="date" id="audit-to" onchange="renderAuditLog()">
       </div>
-      <button class="btn btn-secondary" onclick="exportAuditCSV()">⬇ Export CSV</button>
+      <button class="btn btn-secondary" onclick="exportAuditCSV()">⬇ Export Audit CSV</button>
+      <button class="btn btn-primary" onclick="exportAllZip()" style="background:linear-gradient(135deg,#0369a1,#0ea5e9)">💾 Sauvegarder tout (ZIP)</button>
       <button class="btn btn-secondary" style="color:var(--danger);border-color:var(--danger)" onclick="clearAuditLog()">🗑 Vider</button>
     </div>
   </div>
@@ -479,11 +481,12 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     <div style="overflow-x:auto">
       <table class="data-table" style="font-size:12px">
         <thead><tr>
-          <th style="width:160px">Date / Heure</th>
-          <th style="width:130px">Utilisateur</th>
-          <th style="width:110px">Rôle</th>
-          <th style="width:130px">Action</th>
-          <th>Détail</th>
+          <th style="width:150px">Date / Heure</th>
+          <th style="width:120px">Utilisateur</th>
+          <th style="width:90px">Rôle</th>
+          <th style="width:120px">Action</th>
+          <th style="width:200px">Détail</th>
+          <th>Modifications (avant → après)</th>
         </tr></thead>
         <tbody id="audit-tbody"></tbody>
       </table>
@@ -1812,12 +1815,13 @@ async function loadLotsFromSupabase(){
 // ══════════════════════════════════════════════════
 // AUDIT TRAIL
 // ══════════════════════════════════════════════════
-async function logAction(type, detail){
+async function logAction(type, detail, diff){
   try {
     if(!currentUser) return;
     await sbInsert('audit_logs', {
       action_type: type,
       detail: detail,
+      diff: diff||null,
       user_login: currentUser.login,
       user_nom: currentUser.nom,
       user_role: currentUser.role,
@@ -1887,12 +1891,31 @@ function renderAuditLog(){
     const dt = new Date(r.created_at);
     const dateStr = dt.toLocaleDateString('fr-FR')+' '+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const b = AB[r.action_type]||{color:'#6b7280',bg:'rgba(107,114,128,.15)',icon:'•'};
+    // Render diff column
+    let diffHtml = '—';
+    if(r.diff && r.diff !== '{}') {
+      try {
+        const d = JSON.parse(r.diff);
+        const avant = d.avant||{}, apres = d.apres||{};
+        const keys = Object.keys(avant);
+        if(keys.length > 0) {
+          diffHtml = '<div style="font-size:11px;line-height:1.6">' +
+            keys.map(k =>
+              `<div><span style="color:var(--text3)">${k}:</span> ` +
+              `<span style="color:#dc2626;text-decoration:line-through">${avant[k]}</span> ` +
+              `<span style="color:var(--text3)">→</span> ` +
+              `<span style="color:#16a34a;font-weight:600">${apres[k]}</span></div>`
+            ).join('') + '</div>';
+        }
+      } catch(e) { diffHtml = r.diff||'—'; }
+    }
     return `<tr>
       <td class="mono" style="white-space:nowrap;color:var(--text3)">${dateStr}</td>
       <td><span style="font-weight:600">${r.user_nom||r.user_login||'—'}</span></td>
       <td><span class="badge" style="background:var(--purple-light);color:var(--purple)">${r.user_role||'—'}</span></td>
       <td><span class="badge" style="background:${b.bg};color:${b.color}">${b.icon} ${r.action_type||'—'}</span></td>
-      <td style="max-width:360px;word-break:break-word">${r.detail||'—'}</td>
+      <td style="max-width:200px;word-break:break-word">${r.detail||'—'}</td>
+      <td style="min-width:200px">${diffHtml}</td>
     </tr>`;
   }).join('');
   document.getElementById('audit-tbody').innerHTML = rows||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">Aucun événement</td></tr>';
@@ -1913,6 +1936,76 @@ function exportAuditCSV(){
   a.href=URL.createObjectURL(blob);
   a.download=`audit_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
+}
+
+async function exportAllZip(){
+  const btn = event?.target;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Préparation...'; }
+  try {
+    const zip = new JSZip();
+    const now = new Date();
+    const stamp = now.toISOString().slice(0,10);
+    const folder = zip.folder(`APR_Backup_${stamp}`);
+
+    // Helper: array of objects → CSV string
+    function toCSV(rows){
+      if(!rows||!rows.length) return '';
+      const headers = Object.keys(rows[0]);
+      const lines = [headers.join(';')];
+      rows.forEach(r => {
+        lines.push(headers.map(h => {
+          let v = r[h]??'';
+          if(typeof v === 'object') v = JSON.stringify(v);
+          return '"'+String(v).replace(/"/g,'""')+'"';
+        }).join(';'));
+      });
+      return '\uFEFF' + lines.join('\n');
+    }
+
+    // 1. Lots
+    const lots = allData().map(r => ({
+      Code:r.Code, Lot:r.Lot, DateFab:r.DateFab, DateLib:r.DateLib,
+      DatePer:r.DatePer||'', Statut:r.Statut, Type:getRef(r.Code)?.Type||'',
+      Sodium:r.Sodium, Potassium:r.Potassium, Calcium:r.Calcium,
+      Magnésium:r.Magnésium, Chlorures:r.Chlorures, Acétates:r.Acétates,
+      Glucose:r.Glucose, Bicarbonates:r.Bicarbonates, pH:r.pH,
+      Poids:r.Poids, Rendement:r.Rendement,
+      'Chlorure de sodium':r['Chlorure de sodium'], Osmolalité:r.Osmolalité, HMF:r.HMF
+    }));
+    folder.file('lots.csv', toCSV(lots));
+
+    // 2. Produits
+    const { data: prods } = await SUPA.from('produits').select('*');
+    folder.file('produits.csv', toCSV(prods||[]));
+
+    // 3. Utilisateurs (sans hash)
+    const { data: users } = await SUPA.from('utilisateurs').select('login,nom,role,email,created_at');
+    folder.file('utilisateurs.csv', toCSV(users||[]));
+
+    // 4. Limites fixes
+    const { data: lims } = await SUPA.from('limites_fixes').select('*');
+    folder.file('limites_fixes.csv', toCSV(lims||[]));
+
+    // 5. Audit logs
+    const { data: logs } = await SUPA.from('audit_logs').select('*').order('created_at',{ascending:false});
+    folder.file('audit_logs.csv', toCSV(logs||[]));
+
+    // Generate ZIP
+    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `APR_Backup_${stamp}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify(`✅ Sauvegarde complète exportée (${lots.length} lots)`);
+    logAction('export', `Sauvegarde ZIP complète — ${lots.length} lots, ${(prods||[]).length} produits, ${(logs||[]).length} logs audit`);
+  } catch(e) {
+    notify('Erreur export ZIP : '+e.message, 'error');
+    console.error(e);
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='💾 Sauvegarder tout (ZIP)'; }
+  }
 }
 
 async function clearAuditLog(){
@@ -1987,6 +2080,23 @@ async function saveEditLot(){
   const date_per = document.getElementById('el-per').value||null;
   const statut   = document.getElementById('el-statut').value;
 
+  // Capturer les valeurs AVANT modification
+  const avant = {};
+  const apres = {};
+  if(l.DateFab !== date_fab)  { avant['Date fab']  = fmtDate(l.DateFab);  apres['Date fab']  = fmtDate(date_fab); }
+  if(l.DateLib !== date_lib)  { avant['Date lib']  = fmtDate(l.DateLib);  apres['Date lib']  = fmtDate(date_lib); }
+  if(l.DatePer !== date_per)  { avant['Date pér']  = fmtDate(l.DatePer);  apres['Date pér']  = fmtDate(date_per); }
+  if(l.Statut  !== statut)    { avant['Statut']    = l.Statut;             apres['Statut']    = statut; }
+  params.forEach(p => {
+    const oldVal = l[p]??null;
+    const newVal = paramsObj[p]??null;
+    if(String(oldVal) !== String(newVal)) {
+      avant[p] = oldVal !== null ? oldVal : '—';
+      apres[p] = newVal !== null ? newVal : '—';
+    }
+  });
+  const diffCount = Object.keys(avant).length;
+
   // Update Supabase
   const updates = { date_fab, date_lib, date_per, statut, params: paramsObj };
   const res = await sbUpdate('lots', {id: l._id}, updates);
@@ -1994,7 +2104,8 @@ async function saveEditLot(){
   // Update local savedLots
   savedLots[idx] = { ...l, DateFab:date_fab||'', DateLib:date_lib||'', DatePer:date_per||'', Statut:statut, ...paramsObj };
 
-  logAction('lot_saisi', `Lot ${l.Lot} (${l.Code}) modifié par ${currentUser?.nom}`);
+  const diffStr = diffCount > 0 ? JSON.stringify({avant, apres}) : '{}';
+  logAction('lot_saisi', `Lot ${l.Lot} (${l.Code}) — ${diffCount} champ(s) modifié(s)`, diffStr);
   notify('Lot modifié avec succès !');
   closeEditLot();
   renderSavedLots();
