@@ -1078,7 +1078,7 @@ function renderChart(pts,param,lim,stats){
   let yHi = dataMax + dataPad;
 
   if(lim){
-    // Inclure LSI/LSS seulement s'ils sont proches des données (< 3× l'étendue des données)
+    // Inclure LSI/LSS seulement s'ils sont proches des donnees (< 3x l'etendue des donnees)
     const threshold = dataRange * 3;
     if(lim.lsi !== null && !isNaN(lim.lsi) && (dataMin - lim.lsi) < threshold) yLo = Math.min(yLo, lim.lsi - dataPad*0.3);
     if(lim.lss !== null && !isNaN(lim.lss) && (lim.lss - dataMax) < threshold) yHi = Math.max(yHi, lim.lss + dataPad*0.3);
@@ -1243,13 +1243,14 @@ function renderSavedLots(){
   if(!savedLots.length){sec.style.display='none';return;}
   sec.style.display='block';
   document.getElementById('saved-lots-header').textContent=`Lots saisis manuellement (${savedLots.length})`;
-  document.getElementById('saved-tbody').innerHTML=savedLots.map(l=>`<tr>
+  document.getElementById('saved-tbody').innerHTML=savedLots.map((l,i)=>`<tr>
     <td class="mono" style="color:var(--accent);font-weight:600">${l.Code}</td>
     <td class="mono">${l.Lot}</td>
     <td style="color:var(--text3)">${l.DateFab||'—'}</td>
     <td style="color:var(--text3)">${l.DateLib||'—'}</td>
     <td style="color:var(--text3)">${l.DatePer||'—'}</td>
     <td><span class="badge ${l.Statut==='Libération'?'b-green':'b-blue'}">${l.Statut}</span></td>
+    <td class="tc admin-only"><button class="action-btn" style="background:var(--purple-light);color:var(--purple)" onclick="openEditLot(${i})">✏️ Modifier</button></td>
   </tr>`).join('');
 }
 
@@ -1824,6 +1825,87 @@ async function clearAuditLog(){
   const {error}=await SUPA.from('audit_logs').delete().neq('id',0);
   if(!error){ auditAll=[]; renderAuditLog(); notify('Journal vidé.'); }
 }
+
+// ══════════════════════════════════════════════════
+// MODIFICATION DE LOT (admin only)
+// ══════════════════════════════════════════════════
+let editingLotIndex = null;
+
+function openEditLot(idx){
+  if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
+  const l = savedLots[idx];
+  if(!l) return;
+  editingLotIndex = idx;
+
+  document.getElementById('edit-lot-title').textContent = l.Lot + ' — ' + l.Code;
+  document.getElementById('el-code').value = l.Code;
+  document.getElementById('el-lot').value = l.Lot;
+  document.getElementById('el-fab').value = l.DateFab||'';
+  document.getElementById('el-lib').value = l.DateLib||'';
+  document.getElementById('el-per').value = l.DatePer||'';
+  document.getElementById('el-statut').value = l.Statut||'Libération';
+  document.getElementById('el-err').style.display='none';
+
+  // Build param inputs
+  const ref = getRef(l.Code);
+  const params = PARAMS_BY_TYPE[ref?.Type||'']||[];
+  const unit = p => getUnit(p, ref?.Type||'');
+  document.getElementById('el-params').innerHTML = params.map(p => {
+    const id = 'elp-' + p.replace(/\s+/g,'_');
+    const val = l[p]!==null&&l[p]!==undefined ? l[p] : '';
+    const lim = getLimits(p, ref?.[p]??null, ref?.Type||'');
+    const u = unit(p);
+    return `<div class="fg-form">
+      <label>${p}${u?' ('+u+')':''}</label>
+      <input type="number" step="any" id="${id}" value="${val}" placeholder="—"
+        style="border-color:${lim&&val!==''&&((lim.lsi!==null&&parseFloat(val)<lim.lsi)||parseFloat(val)>lim.lss)?'var(--danger)':''}">
+      ${lim?`<div style="font-size:10px;color:var(--text3);margin-top:2px">${lim.lsi!==null?'LSI: '+fmt(lim.lsi,3)+' | ':''} LSS: ${fmt(lim.lss,3)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-edit-lot').style.display='flex';
+}
+
+function closeEditLot(){
+  document.getElementById('modal-edit-lot').style.display='none';
+  editingLotIndex = null;
+}
+
+async function saveEditLot(){
+  if(!isAdmin()) return;
+  const idx = editingLotIndex;
+  const l = savedLots[idx];
+  if(!l || !l._id) { notify('ID lot introuvable — modification impossible','error'); return; }
+
+  const ref = getRef(l.Code);
+  const params = PARAMS_BY_TYPE[ref?.Type||'']||[];
+
+  // Collect updated param values
+  const paramsObj = {};
+  params.forEach(p => {
+    const id = 'elp-' + p.replace(/\s+/g,'_');
+    const v = document.getElementById(id)?.value;
+    paramsObj[p] = (v===''||v===undefined) ? null : parseFloat(v);
+  });
+
+  const date_fab = document.getElementById('el-fab').value||null;
+  const date_lib = document.getElementById('el-lib').value||null;
+  const date_per = document.getElementById('el-per').value||null;
+  const statut   = document.getElementById('el-statut').value;
+
+  // Update Supabase
+  const updates = { date_fab, date_lib, date_per, statut, params: paramsObj };
+  const res = await sbUpdate('lots', {id: l._id}, updates);
+
+  // Update local savedLots
+  savedLots[idx] = { ...l, DateFab:date_fab||'', DateLib:date_lib||'', DatePer:date_per||'', Statut:statut, ...paramsObj };
+
+  logAction('lot_saisi', `Lot ${l.Lot} (${l.Code}) modifié par ${currentUser?.nom}`);
+  notify('Lot modifié avec succès !');
+  closeEditLot();
+  renderSavedLots();
+  updateAlertBadge();
+}
 </script>
 
 <!-- MODAL GESTION UTILISATEURS -->
@@ -1857,5 +1939,32 @@ async function clearAuditLog(){
 </div>
 </div>
 
+
+<!-- MODAL MODIFICATION LOT -->
+<div id="modal-edit-lot" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;align-items:center;justify-content:center;overflow-y:auto">
+  <div style="background:var(--card);border-radius:14px;padding:28px;width:620px;max-width:96vw;margin:20px auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="margin:0;font-size:16px">✏️ Modifier le lot <span id="edit-lot-title" style="color:var(--accent)"></span></h3>
+      <button onclick="closeEditLot()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3)">✕</button>
+    </div>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="fg-form"><label>Produit</label><input type="text" id="el-code" disabled style="opacity:.6"></div>
+      <div class="fg-form"><label>N° lot</label><input type="text" id="el-lot" disabled style="opacity:.6"></div>
+      <div class="fg-form"><label>Date de fabrication</label><input type="date" id="el-fab"></div>
+      <div class="fg-form"><label>Date de libération</label><input type="date" id="el-lib"></div>
+      <div class="fg-form"><label>Date de péremption</label><input type="date" id="el-per"></div>
+      <div class="fg-form"><label>Type de contrôle</label>
+        <select id="el-statut"><option>IPC</option><option>Libération</option></select>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:12px">Résultats analytiques</div>
+    <div class="param-grid" id="el-params" style="margin-bottom:18px"></div>
+    <div id="el-err" style="display:none;color:var(--danger);font-size:12px;margin-bottom:12px;padding:8px;background:rgba(239,68,68,.1);border-radius:6px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveEditLot()">💾 Enregistrer les modifications</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="closeEditLot()">Annuler</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
