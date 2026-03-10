@@ -1745,7 +1745,7 @@ async function loadAuditLogs(){
       sel.innerHTML = '<option value="">Tous</option>' + users.map(u=>`<option value="${u}">${u}</option>`).join('');
     }
     if(auditAll.length === 0){
-      if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucun événement enregistré pour l'instant.<br><small>Les actions seront tracées à partir de maintenant.</small></td></tr>';
+      if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucun événement enregistré pour l\'instant.<br><small>Les actions seront tracées à partir de maintenant.</small></td></tr>';
       if(countEl) countEl.textContent = '0 événement';
       return;
     }
