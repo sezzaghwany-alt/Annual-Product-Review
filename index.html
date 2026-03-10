@@ -356,7 +356,13 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 
 <!-- SAISIE -->
 <div class="page" id="page-saisie">
-  <h2>Saisie d'un nouveau lot</h2>
+  <div class="flex-between mb18">
+    <h2 style="margin:0">Saisie des lots</h2>
+    <button class="btn btn-primary" id="btn-new-lot" onclick="showSaisieForm(true)">+ Nouveau lot</button>
+  </div>
+
+  <!-- Formulaire (masqué par défaut, visible si on clique Nouveau lot) -->
+  <div id="saisie-form-section" style="display:none">
   <div class="card mb18" style="max-width:700px;padding:22px">
     <div class="form-grid">
       <div class="fg-form"><label>Produit *</label><select id="s-code" onchange="onSaisieProductChange()"></select></div>
@@ -371,8 +377,10 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     <div style="margin-top:18px;display:flex;gap:10px">
       <button class="btn btn-primary" id="btn-save" onclick="saveLot()">💾 Enregistrer le lot</button>
       <button class="btn btn-secondary" onclick="resetForm()">↺ Réinitialiser</button>
+      <button class="btn btn-secondary" onclick="showSaisieForm(false)" style="margin-left:auto">✕ Annuler</button>
     </div>
   </div>
+  </div> <!-- /saisie-form-section -->
   <div id="saved-lots-section" style="display:none">
     <div class="card" style="padding:0;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
@@ -553,6 +561,7 @@ let editingCode = null;
 let auditAll = [];
 let auditPage = 1;
 const AUDIT_PER_PAGE = 50; // for modal
+let editingLotIndex = null;
 
 // ═══════════════════════════════════════════════════
 // FIXED LIMITS — éditable par l'utilisateur
@@ -660,7 +669,10 @@ function showPage(id){
       if(sc&&btn) sc.onscroll=()=>{ btn.style.display=sc.scrollTop>100?'flex':'none'; };
     },100);
   }
-  if(id==='saisie') populateSaisieDropdowns();
+  if(id==='saisie'){
+    populateSaisieDropdowns();
+    showSaisieForm(false); // masquer le form, montrer seulement la liste
+  }
   if(id==='audit') loadAuditLogs();
 }
 
@@ -1178,6 +1190,20 @@ function renderChart(pts,param,lim,stats){
 // ═══════════════════════════════════════════════════
 // SAISIE
 // ═══════════════════════════════════════════════════
+function showSaisieForm(show){
+  const sec = document.getElementById('saisie-form-section');
+  const btn = document.getElementById('btn-new-lot');
+  if(show){
+    sec.style.display = 'block';
+    btn.style.display = 'none';
+    sec.scrollIntoView({behavior:'smooth', block:'start'});
+  } else {
+    sec.style.display = 'none';
+    btn.style.display = '';
+    resetForm();
+  }
+}
+
 function populateSaisieDropdowns(){
   const sel=document.getElementById('s-code');
   const cur=sel.value;
@@ -1241,6 +1267,7 @@ async function saveLot(){
   logAction('lot_saisi', `Lot ${document.getElementById('s-lot')?.value||'?'} — ${document.getElementById('s-code')?.value||'?'} saisi`);
   notify('Lot enregistré !');
   updateAlertBadge();
+  showSaisieForm(false);
 }
 
 function resetForm(){
@@ -1878,8 +1905,6 @@ async function clearAuditLog(){
 // ══════════════════════════════════════════════════
 // MODIFICATION DE LOT (admin only)
 // ══════════════════════════════════════════════════
-let editingLotIndex = null;
-
 function openEditLot(idx){
   if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
   const l = savedLots[idx];
