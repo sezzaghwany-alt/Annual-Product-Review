@@ -309,14 +309,19 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     <div class="chart-title">
       <span id="chart-title-text">Carte de contrôle</span>
       <span id="chart-nc-badge"></span>
-      <button id="btn-ai-analyse" onclick="analyseWithAI()"
-        style="margin-left:auto;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;
-        border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
-        display:flex;align-items:center;gap:7px;transition:all .2s;box-shadow:0 2px 8px #6366f140"
-        onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px #6366f155'"
-        onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px #6366f140'">
-        🤖 Interpréter avec l'IA
-      </button>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button onclick="configApiKey()" title="Configurer la clé API"
+          style="background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--text3)"
+          onmouseover="this.style.borderColor='#6366f1'" onmouseout="this.style.borderColor='var(--border)'">🔑</button>
+        <button id="btn-ai-analyse" onclick="analyseWithAI()"
+          style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;
+          border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
+          display:flex;align-items:center;gap:7px;transition:all .2s;box-shadow:0 2px 8px #6366f140"
+          onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px #6366f155'"
+          onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px #6366f140'">
+          🤖 Interpréter avec l'IA
+        </button>
+      </div>
     </div>
     <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
   </div>
@@ -1100,7 +1105,7 @@ function onFilterChange(){
       const db = b.DateFab||b.DateLib||b.Lot||'';
       return da.localeCompare(db);
     });
-  renderChart(chartPts,param,lim,stats);
+  if(document.getElementById('mainChart')) renderChart(chartPts,param,lim,stats,unit);
 
   // Table
   const tbody=document.getElementById('lots-tbody');
@@ -1117,10 +1122,12 @@ function onFilterChange(){
   }).join('');
 }
 
-function renderChart(pts,param,lim,stats){
+function renderChart(pts,param,lim,stats,unit){
   const ctx=document.getElementById('mainChart');
+  if(!ctx) return;
   if(mainChart){mainChart.destroy();mainChart=null;}
   if(!pts.length) return;
+  const _unit = unit || '';
   const labels=pts.map((r,i)=>r.Lot||`#${i+1}`);
   const values=pts.map(r=>r[param]);
   const pColors=values.map(v=>lim&&((lim.lsi!==null&&v<lim.lsi)||v>lim.lss)?'#dc2626':'#0369a1');
@@ -1147,7 +1154,7 @@ function renderChart(pts,param,lim,stats){
     options:{
       responsive:true,maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',titleColor:'#0f172a',bodyColor:'#475569',borderColor:'#e2e8f0',borderWidth:1,callbacks:{label:c=>`  ${param}: ${fmt(c.raw,4)}${unit?' '+unit:''}${lim&&(c.raw<lim.lsi||c.raw>lim.lss)?' ⚠️ NC':''}`}}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#fff',titleColor:'#0f172a',bodyColor:'#475569',borderColor:'#e2e8f0',borderWidth:1,callbacks:{label:c=>`  ${param}: ${fmt(c.raw,4)}${_unit?' '+_unit:''}${lim&&(c.raw<lim.lsi||c.raw>lim.lss)?' ⚠️ NC':''}`}}},
       scales:{
         x:{ticks:{maxTicksLimit:14,font:{size:10},color:'#94a3b8'},grid:{color:'#f1f5f9'}},
         y:{min:yMin, max:yMax, ticks:{font:{size:10},color:'#94a3b8'},grid:{color:'#f1f5f9'}}
@@ -1737,13 +1744,11 @@ async function deleteUser(login){
   notify('Utilisateur supprimé.');
 }
 
-document.getElementById('modal-users').addEventListener('click', e=>{
-  if(e.target===e.currentTarget) closeUsersModal();
-});
-
-
 document.addEventListener('DOMContentLoaded', async ()=>{
   initNetlifyAuth();
+  // modal-users est défini après la balise script — doit être dans DOMContentLoaded
+  const mu = document.getElementById('modal-users');
+  if(mu) mu.addEventListener('click', e=>{ if(e.target===e.currentTarget) closeUsersModal(); });
   populateAnalyseDropdowns();
   populateSaisieDropdowns();
   // Charger les lots depuis Supabase
@@ -2009,11 +2014,28 @@ async function saveEditLot(){
 // ══════════════════════════════════════════════════
 // ANALYSE IA — Interprétation des graphiques
 // ══════════════════════════════════════════════════
+function configApiKey(){
+  const current = localStorage.getItem('aq_apikey')||'';
+  const key = prompt('Clé API Anthropic (sk-ant-...)\nElle est stockée localement dans votre navigateur.', current);
+  if(key === null) return; // annulé
+  if(key.trim()) {
+    localStorage.setItem('aq_apikey', key.trim());
+    notify('Clé API sauvegardée ✓');
+  } else {
+    localStorage.removeItem('aq_apikey');
+    notify('Clé API supprimée', 'warning');
+  }
+}
+
 async function analyseWithAI(){
   const btn = document.getElementById('btn-ai-analyse');
   const card = document.getElementById('interp-card');
   const txt  = document.getElementById('interp-text');
   if(!btn || !txt) return;
+  if(!localStorage.getItem('aq_apikey')){
+    notify('Clé API manquante — cliquez sur 🔑 pour la configurer.','error');
+    return;
+  }
 
   // Collecter les données du graphique actuel
   const code   = document.getElementById('f-code')?.value;
@@ -2075,7 +2097,7 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': (localStorage.getItem('aq_apikey')||''), 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
