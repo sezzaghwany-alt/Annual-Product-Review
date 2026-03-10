@@ -1729,10 +1729,6 @@ async function logAction(type, detail){
   } catch(e){ console.warn('logAction:', e); }
 }
 
-let auditAll = [];
-let auditPage = 1;
-const AUDIT_PER_PAGE = 50;
-
 async function loadAuditLogs(){
   // Afficher un indicateur de chargement
   const tbody = document.getElementById('audit-tbody');
