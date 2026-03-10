@@ -156,7 +156,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 /* ── AIDE ────────────────────────────────── */
 .help-nav-btn {
   padding:6px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;
-  border:1.5px solid var(--border);background:var(--card);color:var(--text3);
+  border:1.5px solid var(--border);background:#ffffff;color:var(--text3);
   transition:all .15s;
 }
 .help-nav-btn:hover, .help-nav-btn.active {
@@ -169,9 +169,9 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 .help-table { width:100%;border-collapse:collapse;font-size:12.5px;margin:12px 0 }
 .help-table th { background:var(--accent);color:#fff;padding:8px 12px;text-align:left;font-weight:600 }
 .help-table td { padding:8px 12px;border-bottom:1px solid var(--border) }
-.help-table tr:nth-child(even) td { background:var(--bg) }
+.help-table tr:nth-child(even) td { background:#f8fafc }
 .help-badge { display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin:2px }
-.help-box { background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:12px 0 }
+.help-box { background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:12px 0 }
 .help-box.info { border-left:4px solid var(--accent) }
 .help-box.warn { border-left:4px solid #f59e0b;background:#fef9ee }
 .help-box.tip  { border-left:4px solid #10b981;background:#f0fdf4 }
@@ -1550,6 +1550,8 @@ async function doLogin(){
   }
   err.style.display='none';
   currentUser = user;
+  // Persister la session pour résister au refresh
+  try { sessionStorage.setItem('apr_session', JSON.stringify({login: user.login, hash: user.hash})); } catch(e){}
   document.getElementById('login-overlay').style.display='none';
   updateHeaderUser(user);
   applyRoleUI();
@@ -1588,6 +1590,7 @@ function doLogout(){
   if(!confirm('Se déconnecter ?')) return;
   logAction('deconnexion', `Déconnexion de ${currentUser?.nom||'?'}`).finally(()=>{});
   currentUser=null;
+  try { sessionStorage.removeItem('apr_session'); } catch(e){}
   document.getElementById('l-user').value='';
   document.getElementById('l-pwd').value='';
   document.getElementById('login-overlay').style.display='flex';
@@ -1794,6 +1797,25 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if(mu) mu.addEventListener('click', e=>{ if(e.target===e.currentTarget) closeUsersModal(); });
   populateAnalyseDropdowns();
   populateSaisieDropdowns();
+
+  // ── Restauration de session après refresh ──
+  try {
+    const saved = sessionStorage.getItem('apr_session');
+    if(saved){
+      const {login, hash} = JSON.parse(saved);
+      const users = await loadUsers();
+      const user = users.find(u => u.login===login && u.hash===hash);
+      if(user){
+        currentUser = user;
+        document.getElementById('login-overlay').style.display='none';
+        updateHeaderUser(user);
+        applyRoleUI();
+      } else {
+        sessionStorage.removeItem('apr_session');
+      }
+    }
+  } catch(e){ console.warn('Session restore error:', e); }
+
   // Charger les lots depuis Supabase
   await loadAllFromSupabase();
   renderDashboard();
@@ -2506,7 +2528,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 <!-- MODAL AIDE / GUIDE UTILISATEUR                                  -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div id="modal-help" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,.8);backdrop-filter:blur(4px);z-index:4000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px">
-<div style="background:var(--card);border-radius:16px;max-width:860px;width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);border:1px solid var(--border)">
+<div style="background:#ffffff;border-radius:16px;max-width:860px;width:100%;margin:auto;box-shadow:0 24px 80px rgba(0,0,0,.55);border:1px solid #e2e8f0">
 
   <!-- Header -->
   <div style="background:linear-gradient(135deg,#0369a1,#0ea5e9);border-radius:16px 16px 0 0;padding:24px 28px;display:flex;align-items:center;justify-content:space-between">
@@ -2533,10 +2555,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
   </div>
 
   <!-- Content -->
-  <div id="help-content" style="padding:28px;min-height:400px;line-height:1.7;font-size:13.5px;color:var(--text)"></div>
+  <div id="help-content" style="padding:28px;min-height:400px;line-height:1.7;font-size:13.5px;color:#0f172a"></div>
 
   <!-- Footer -->
-  <div style="padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:0 0 16px 16px">
+  <div style="padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-radius:0 0 16px 16px">
     <span style="font-size:11px;color:var(--text3)">Application APR v1.0 · Mars 2026 · ARWAMEDIC</span>
     <button onclick="closeHelp()" class="btn btn-secondary" style="font-size:12px;padding:6px 16px">Fermer</button>
   </div>
