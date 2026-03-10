@@ -374,10 +374,29 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
     </div>
   </div>
   <div id="saved-lots-section" style="display:none">
-    <div class="card">
-      <div class="card-header" id="saved-lots-header">Lots saisis</div>
-      <div class="tw"><table><thead><tr><th>Code</th><th>N° lot</th><th>Date fab.</th><th>Date lib.</th><th>Date pér.</th><th>Statut</th></tr></thead>
-      <tbody id="saved-tbody"></tbody></table></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
+        <div class="card-header" id="saved-lots-header" style="margin:0;padding:0;border:none">Lots saisis</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="search-bar" style="width:160px"><input type="text" id="saved-search-lot" placeholder="N° lot..." oninput="filterSavedLots()" style="padding:5px 10px;font-size:12px"></div>
+          <div class="search-bar" style="width:130px"><input type="text" id="saved-search-code" placeholder="Code produit..." oninput="filterSavedLots()" style="padding:5px 10px;font-size:12px"></div>
+          <select id="saved-search-statut" onchange="filterSavedLots()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card)">
+            <option value="">Tous statuts</option>
+            <option value="IPC">IPC</option>
+            <option value="Libération">Libération</option>
+          </select>
+          <button class="btn btn-secondary" style="font-size:11px;padding:4px 8px" onclick="clearSavedFilters()">✕ Effacer</button>
+        </div>
+      </div>
+      <div id="saved-lots-scroll" style="max-height:380px;overflow-y:auto;overflow-x:auto">
+        <table style="border-collapse:collapse;width:100%">
+          <thead style="position:sticky;top:0;z-index:10;background:var(--card)">
+            <tr><th>Code</th><th>N° lot</th><th>Date fab.</th><th>Date lib.</th><th>Date pér.</th><th>Statut</th><th class="admin-only">Action</th></tr>
+          </thead>
+          <tbody id="saved-tbody"></tbody>
+        </table>
+      </div>
+      <div id="saved-count" style="padding:8px 16px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)"></div>
     </div>
   </div>
 </div>
@@ -1243,15 +1262,45 @@ function renderSavedLots(){
   if(!savedLots.length){sec.style.display='none';return;}
   sec.style.display='block';
   document.getElementById('saved-lots-header').textContent=`Lots saisis manuellement (${savedLots.length})`;
-  document.getElementById('saved-tbody').innerHTML=savedLots.map((l,i)=>`<tr>
+  filterSavedLots();
+}
+
+function filterSavedLots(){
+  const searchLot   = (document.getElementById('saved-search-lot')?.value||'').toLowerCase().trim();
+  const searchCode  = (document.getElementById('saved-search-code')?.value||'').toLowerCase().trim();
+  const searchStat  = document.getElementById('saved-search-statut')?.value||'';
+
+  const filtered = savedLots.map((l,i)=>({...l,_idx:i})).filter(l=>{
+    if(searchLot  && !l.Lot?.toLowerCase().includes(searchLot))   return false;
+    if(searchCode && !l.Code?.toLowerCase().includes(searchCode)) return false;
+    if(searchStat && l.Statut !== searchStat)                      return false;
+    return true;
+  });
+
+  document.getElementById('saved-tbody').innerHTML = filtered.map(l=>`<tr>
     <td class="mono" style="color:var(--accent);font-weight:600">${l.Code}</td>
     <td class="mono">${l.Lot}</td>
     <td style="color:var(--text3)">${l.DateFab||'—'}</td>
     <td style="color:var(--text3)">${l.DateLib||'—'}</td>
     <td style="color:var(--text3)">${l.DatePer||'—'}</td>
     <td><span class="badge ${l.Statut==='Libération'?'b-green':'b-blue'}">${l.Statut}</span></td>
-    <td class="tc admin-only"><button class="action-btn" style="background:var(--purple-light);color:var(--purple)" onclick="openEditLot(${i})">✏️ Modifier</button></td>
+    <td class="tc admin-only"><button class="action-btn" style="background:var(--purple-light);color:var(--purple)" onclick="openEditLot(${l._idx})">✏️ Modifier</button></td>
   </tr>`).join('');
+
+  const countEl = document.getElementById('saved-count');
+  if(countEl) countEl.textContent = filtered.length === savedLots.length
+    ? `${savedLots.length} lot(s) au total`
+    : `${filtered.length} résultat(s) sur ${savedLots.length}`;
+}
+
+function clearSavedFilters(){
+  const lot = document.getElementById('saved-search-lot');
+  const code = document.getElementById('saved-search-code');
+  const stat = document.getElementById('saved-search-statut');
+  if(lot) lot.value='';
+  if(code) code.value='';
+  if(stat) stat.value='';
+  filterSavedLots();
 }
 
 // ═══════════════════════════════════════════════════
