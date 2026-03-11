@@ -655,14 +655,28 @@ const PARAMS_BY_TYPE = {
   "Poches stériles Glucose":["Glucose","pH","Poids","Rendement","Osmolalité","HMF"],
 };
 
-// ── Paramètres disponibles en IPC (sous-ensemble des paramètres de libération) ──
+// ── Paramètres IPC réels (source : dossier de lot / tableau IPC Excel APR) ──
+// SDA vs SDAG : même Type="Solution Dialyse Acide" mais SDAG a une spec Glucose
+// → détection dynamique dans getIPCParams()
 const IPC_PARAMS_BY_TYPE = {
-  "Solution Dialyse Acide":    ["Sodium","Potassium","Calcium","Magnésium","Chlorures","Acétates","Glucose","pH","Poids","Rendement"],
-  "Solution Dialyse Bicarbonate": ["Sodium","Chlorures","Bicarbonates","pH","Poids","Rendement"],
-  "Cartouche":                 ["Bicarbonates","pH","Poids","Rendement"],
-  "Poches stériles Chlorures": ["pH","Poids","Rendement","Chlorure de sodium","Osmolalité"],
-  "Poches stériles Glucose":   ["Glucose","pH","Poids","Rendement","Osmolalité","HMF"],
+  "Solution Dialyse Acide":    ["Chlorures","Acétates","pH"],           // SDA (sans Glucose)
+  "Solution Dialyse Bicarbonate": ["Chlorures","Bicarbonates","pH"],    // SDB
+  "Cartouche":                 [],                                       // CART — aucun test IPC
+  "Poches stériles Chlorures": ["Chlorure de sodium","pH"],             // PSC
+  "Poches stériles Glucose":   ["Glucose","pH"],                        // PSG
 };
+
+// Retourne les paramètres IPC du produit — gère la détection SDAG dynamiquement
+function getIPCParams(code) {
+  const ref = getRef(code);
+  if(!ref) return [];
+  const type = ref.Type || "";
+  // SDAG : Solution Dialyse Acide AVEC spec Glucose → ajouter Glucose en IPC
+  if(type === "Solution Dialyse Acide" && ref["Glucose"] !== null && ref["Glucose"] !== undefined) {
+    return ["Chlorures","Acétates","Glucose","pH"]; // SDAG
+  }
+  return IPC_PARAMS_BY_TYPE[type] || [];
+}
 // Nombre max de répétitions IPC
 const IPC_MAX_REPEATS = 8;
 
@@ -1431,7 +1445,7 @@ function renderParamInputs(code, statut){
   const ref = getRef(code);
   const isIPC = statut === 'IPC';
   const params = isIPC
-    ? (IPC_PARAMS_BY_TYPE[ref?.Type||""]||[])
+    ? getIPCParams(code)
     : (PARAMS_BY_TYPE[ref?.Type||""]||[]);
 
   if(isIPC){
