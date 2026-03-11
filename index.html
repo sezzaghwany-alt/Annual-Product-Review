@@ -2665,37 +2665,22 @@ Sois concis, factuel et orienté décision. Utilise des **mots en gras** pour le
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
 
   try {
-    // Tentative via Cloudflare AI Gateway (contourne restrictions réseau/Kaspersky)
-    const CF_GATEWAY = 'https://gateway.ai.cloudflare.com/v1/73c79e053075ee2c41d359f241cd4434/default/anthropic';
-    const API_KEY = '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';
-    const reqBody = JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
+    // Appel via Cloudflare Worker proxy (pas de CORS, clé API côté serveur)
+    // Worker URL : à déployer sur Cloudflare Workers (voir instructions ci-dessous)
+    const WORKER_URL = 'https://apr-ia-proxy.sezzaghwany.workers.dev';
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
-    let res;
-    try {
-      res = await fetch(CF_GATEWAY + '/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
-        body: reqBody
-      });
-    } catch(e) {
-      // Fallback : appel direct avec header CORS browser
-      res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: reqBody
-      });
-    }
 
+    if(!res.ok){
+      const errJson = await res.json().catch(()=>({}));
+      throw new Error(errJson.error || `Erreur ${res.status}`);
+    }
     const json = await res.json();
-    const reply = json.content?.[0]?.text || 'Pas de réponse.';
+    // Le Worker renvoie { text: "..." } ou format Anthropic natif
+    const reply = json.text || json.content?.[0]?.text || 'Pas de réponse.';
 
 
     // Badge état procédé
