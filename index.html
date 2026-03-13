@@ -211,7 +211,7 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 /* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;align-items:center;justify-content:center}
 .modal-overlay.show{display:flex}
-.modal{background:var(--surface);border-radius:var(--r);box-shadow:var(--shm);width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:24px}
+.modal{background:var(--surface);border-radius:var(--r);box-shadow:var(--shm);width:1100px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:24px}
 .modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
 .modal-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);padding:2px 6px;border-radius:5px}
 .modal-close:hover{background:var(--surface2)}
@@ -373,66 +373,139 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
 
 <!-- MODAL produit -->
 <div class="modal-overlay" id="modal-produit">
-<div class="modal" style="max-width:820px;max-height:90vh;overflow-y:auto">
-  <div class="modal-title" style="position:sticky;top:0;z-index:10;background:var(--card);border-radius:var(--r) var(--r) 0 0">
-    <span id="modal-title-text">Ajouter un produit</span>
+<div class="modal" style="max-width:980px;max-height:92vh;overflow-y:auto;padding:0">
+  <div class="modal-title" style="position:sticky;top:0;z-index:20;background:var(--card);border-radius:var(--r) var(--r) 0 0;padding:14px 20px;border-bottom:1px solid var(--border)">
+    <span id="modal-title-text" style="font-size:15px;font-weight:700">Ajouter un produit</span>
     <button class="modal-close" onclick="closeModal()">✕</button>
   </div>
-
-  <!-- Infos de base -->
-  <div class="form-grid" style="margin-bottom:4px">
-    <div class="fg-form"><label>Code *</label><input type="text" id="m-code" placeholder="ex: PFF035"></div>
-    <div class="fg-form"><label>Type *</label>
-      <select id="m-type" onchange="onModalTypeChange()">
-        <option>Solution Dialyse Acide</option>
-        <option>Solution Dialyse Bicarbonate</option>
-        <option>Cartouche</option>
-        <option>Poches stériles Chlorures</option>
-        <option>Poches stériles Glucose</option>
-        <option value="__custom__">➕ Nouveau type personnalisé…</option>
-      </select>
+  <div style="padding:20px">
+    <!-- Infos de base -->
+    <div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:14px;margin-bottom:18px;align-items:end">
+      <div class="fg-form"><label>Code *</label><input type="text" id="m-code" placeholder="ex: PFF035"></div>
+      <div class="fg-form"><label>Type *</label>
+        <select id="m-type" onchange="onModalTypeChange()">
+          <option>Solution Dialyse Acide</option>
+          <option>Solution Dialyse Bicarbonate</option>
+          <option>Cartouche</option>
+          <option>Poches stériles Chlorures</option>
+          <option>Poches stériles Glucose</option>
+          <option value="__custom__">➕ Nouveau type personnalisé…</option>
+        </select>
+      </div>
+      <div class="fg-form" id="fg-custom-type" style="display:none">
+        <label>Nom du nouveau type *</label>
+        <input type="text" id="m-custom-type" placeholder="ex: Solution Saline Hypertonique" oninput="renderModalParams()">
+      </div>
+      <div class="fg-form" style="grid-column:span 3"><label>Désignation *</label>
+        <input type="text" id="m-desig" placeholder="ex: ARWACIDE K+ 2 Ca++ 1,25 Solution concentrée pour Hémodialyse">
+      </div>
     </div>
-    <div class="fg-form" id="fg-custom-type" style="display:none">
-      <label>Nom du nouveau type *</label>
-      <input type="text" id="m-custom-type" placeholder="ex: Solution Saline Hypertonique">
+    <!-- Tableau paramètres unifié -->
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-weight:700;font-size:13px">Paramètres du produit</div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addCustomParam()">➕ Ajouter un paramètre</button>
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:8px">
+        <table id="m-params-table" style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--surface2)">
+              <th style="padding:8px 10px;text-align:left;font-weight:700;border-bottom:2px solid var(--border);min-width:130px">Paramètre</th>
+              <th style="padding:8px 8px;text-align:center;font-weight:700;color:#0369a1;border-bottom:2px solid var(--border)" title="Contrôle en cours de fabrication">🔵 IPC</th>
+              <th style="padding:8px 8px;text-align:left;font-weight:700;color:#0369a1;border-bottom:2px solid var(--border);min-width:105px">Cible IPC</th>
+              <th style="padding:8px 8px;text-align:center;font-weight:700;color:#059669;border-bottom:2px solid var(--border)" title="Résultat libération finale">🟢 Lib</th>
+              <th style="padding:8px 8px;text-align:left;font-weight:700;color:#059669;border-bottom:2px solid var(--border);min-width:105px">Cible Lib</th>
+              <th style="padding:8px 8px;text-align:left;font-weight:700;border-bottom:2px solid var(--border);min-width:85px">Tolérance %</th>
+              <th style="padding:8px 8px;text-align:left;font-weight:700;border-bottom:2px solid var(--border);min-width:75px">Unité</th>
+              <th style="padding:8px 4px;border-bottom:2px solid var(--border);width:30px"></th>
+            </tr>
+          </thead>
+          <tbody id="m-params-tbody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;padding:6px 10px;background:rgba(14,165,233,.04);border-radius:6px;border-left:3px solid #0369a1">
+        💡 <b>Cible IPC</b> = valeur de référence en cours de fabrication (facultatif si = Lib). <b>Cible Lib</b> = valeur de référence pour la fiche de libération.
+      </div>
     </div>
-    <div class="fg-form" style="grid-column:span 2"><label>Désignation *</label><input type="text" id="m-desig" placeholder="ex: ARWACIDE K+ 3 Ca++ 1.5 Solution concentrée…"></div>
-  </div>
-
-  <!-- Paramètres IPC -->
-  <div style="background:rgba(14,165,233,.05);border:1.5px solid rgba(14,165,233,.2);border-radius:10px;padding:16px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-weight:700;font-size:13px;color:#0369a1">🔵 Paramètres IPC <span style="font-weight:400;font-size:11px;color:var(--text3)">(cocher les paramètres à contrôler en cours de fabrication)</span></div>
+    <!-- Limites fixes pH / Osmolalité -->
+    <div style="margin-bottom:14px">
+      <div class="section-title" style="margin-bottom:8px;font-weight:700;font-size:13px">Limites fixes — pH / Osmolalité
+        <span style="font-size:10px;color:var(--text3);font-weight:400"> (LSI/LSS directs — sans valeur cible)</span>
+      </div>
+      <div id="m-fixed-limits-section" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px"></div>
     </div>
-    <div id="m-ipc-params" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <!-- Commentaire -->
+    <div id="m-comment-section" style="margin-bottom:6px">
+      <div class="section-title" style="margin-bottom:8px;font-weight:700;font-size:13px">💬 Commentaire
+        <span id="m-comment-label" style="font-weight:400;font-size:11px;color:var(--text3)"> (optionnel)</span>
+      </div>
+      <textarea id="m-comment" rows="2" placeholder="Motif de création ou modification..."
+        style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+    </div>
   </div>
-
-  <!-- Paramètres Libération avec valeurs cibles -->
-  <div style="background:rgba(5,150,105,.05);border:1.5px solid rgba(5,150,105,.2);border-radius:10px;padding:16px;margin-bottom:14px">
-    <div style="font-weight:700;font-size:13px;color:#059669;margin-bottom:12px">🟢 Paramètres Libération <span style="font-weight:400;font-size:11px;color:var(--text3)">(valeurs cibles ± tolérance)</span></div>
-    <div id="m-lib-params" class="param-grid"></div>
-  </div>
-
-  <!-- Limites fixes pH / Osmolalité -->
-  <div style="margin-bottom:14px">
-    <div class="section-title" style="margin-bottom:8px">Limites fixes — pH / Osmolalité <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">— selon le type de produit</span></div>
-    <div id="m-fixed-limits-section" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px"></div>
-  </div>
-
-  <!-- Commentaire (création et modification) -->
-  <div id="m-comment-section" style="margin-bottom:14px">
-    <div class="section-title" style="margin-bottom:8px">💬 Commentaire <span id="m-comment-label" style="font-weight:400;font-size:11px;color:var(--text3)">(optionnel)</span></div>
-    <textarea id="m-comment" rows="2" placeholder="Motif de création ou modification (ex: Nouveau produit validé le 12/03/2026 / Mise à jour spec Sodium suite audit interne...)"
-      style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:var(--bg);color:var(--text);box-sizing:border-box"></textarea>
-  </div>
-
-  <div style="display:flex;gap:10px;position:sticky;bottom:0;background:var(--card);padding:12px 0 0">
+  <div style="display:flex;gap:10px;position:sticky;bottom:0;background:var(--card);padding:12px 20px;border-top:1px solid var(--border)">
     <button class="btn btn-primary" onclick="saveProduct()">💾 Enregistrer</button>
     <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
     <button class="btn btn-danger admin-only" id="btn-delete-product" style="margin-left:auto;display:none" onclick="deleteProduct()">🗑 Supprimer</button>
   </div>
 </div>
 </div>
+<!-- ══ MODALE AJOUT PARAMÈTRE ══ -->
+<div class="modal-overlay" id="modal-add-param" style="z-index:1100">
+<div class="modal" style="max-width:480px;padding:0">
+  <div class="modal-title" style="padding:14px 20px;border-bottom:1px solid var(--border)">
+    <span style="font-size:14px;font-weight:700">➕ Nouveau paramètre</span>
+    <button class="modal-close" onclick="closeAddParamModal()">✕</button>
+  </div>
+  <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+    <div class="fg-form">
+      <label style="font-weight:600">Nom du paramètre <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="ap-name" placeholder="ex: Conductivité, Turbidité, Nitrates…"
+        style="font-size:13px"
+        onkeydown="if(event.key==='Enter')document.getElementById('ap-unit').focus()">
+      <div id="ap-name-err" style="color:var(--danger);font-size:11px;margin-top:3px;display:none"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="fg-form">
+        <label style="font-weight:600">Unité</label>
+        <input type="text" id="ap-unit" placeholder="ex: mmol/L, mS/cm, NTU, mg/L"
+          style="font-size:13px"
+          onkeydown="if(event.key==='Enter')document.getElementById('ap-tol').focus()">
+      </div>
+      <div class="fg-form">
+        <label style="font-weight:600">Tolérance (%)</label>
+        <input type="number" id="ap-tol" value="5" min="0" max="50" step="0.5"
+          style="font-size:13px"
+          onkeydown="if(event.key==='Enter')confirmAddParam()">
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">±% autour de la valeur cible</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:rgba(14,165,233,.03)"
+        onclick="document.getElementById('ap-ipc').click()">
+        <input type="checkbox" id="ap-ipc" style="accent-color:#0369a1;width:16px;height:16px;cursor:pointer">
+        <div>
+          <div style="font-weight:600;font-size:12px;color:#0369a1">🔵 Contrôle IPC</div>
+          <div style="font-size:10px;color:var(--text3)">En cours de fabrication</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:rgba(5,150,105,.03)"
+        onclick="document.getElementById('ap-lib').click()">
+        <input type="checkbox" id="ap-lib" checked style="accent-color:#059669;width:16px;height:16px;cursor:pointer">
+        <div>
+          <div style="font-weight:600;font-size:12px;color:#059669">🟢 Libération</div>
+          <div style="font-size:10px;color:var(--text3)">Fiche de libération finale</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn btn-secondary" onclick="closeAddParamModal()">Annuler</button>
+    <button class="btn btn-primary" onclick="confirmAddParam()">✅ Ajouter</button>
+  </div>
+</div>
+</div>
+
 
 <!-- ══ SIDEBAR VERTICALE ══ -->
 <aside id="sidebar">
@@ -736,7 +809,6 @@ select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(3,
       <div id="saved-count" style="padding:8px 16px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)"></div>
     </div>
   </div>
-</div>
 
 <!-- ALERTES -->
 <div class="page" id="page-alertes">
@@ -1100,6 +1172,7 @@ function showPage(id){
   if(id==='saisie'){
     populateSaisieDropdowns();
     showSaisieForm(false); // masquer le form, montrer seulement la liste
+    renderSavedLots(); // afficher le tableau
   }
   if(id==='audit') loadAuditLogs();
 }
@@ -1222,9 +1295,12 @@ function renderSpecs(){
       const unitBadge=unit?`<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:4px">${unit}</span>`:'';
       const ipcParamsForRef = IPC_PARAMS_BY_TYPE[ref.Type]||[];
       const isIPCparam = ipcParamsForRef.includes(param);
-      const catBadge = isIPCparam
-        ? `<span class="badge b-blue" style="font-size:9px;padding:1px 5px;margin-left:4px">IPC</span>`
-        : `<span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:4px">Lib</span>`;
+      const isLibparam = (PARAMS_BY_TYPE[ref.Type]||[]).includes(param);
+      const catBadge = (isIPCparam && isLibparam)
+        ? `<span class="badge b-blue" style="font-size:9px;padding:1px 5px;margin-left:3px">IPC</span><span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:2px">Lib</span>`
+        : isIPCparam
+          ? `<span class="badge b-blue" style="font-size:9px;padding:1px 5px;margin-left:3px">IPC</span>`
+          : `<span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:3px">Lib</span>`;
       return `<tr>
         <td style="font-weight:500">${param}${unitBadge}${catBadge}</td>
         <td class="spec-val">${special?'—':fmt(spec,3)}</td>
@@ -1319,56 +1395,168 @@ function onModalTypeChange(){
 
 function renderModalParams(){
   const type = getEffectiveModalType();
-  // Params IPC selon type existant (pré-cochés)
+  const isCustomType = document.getElementById('m-type')?.value === '__custom__';
   const existingIPC = IPC_PARAMS_BY_TYPE[type] || [];
   const existingLib = PARAMS_BY_TYPE[type] || [];
+  if(!window._customParams) window._customParams = [];
 
-  // IPC — cases à cocher pour tous les params chimiques (pas Poids/Rendement)
-  const chemParams = ALL_PARAMS.filter(p => !['Poids','Rendement','pH','Osmolalité','HMF'].includes(p.key));
-  const ipcDiv = document.getElementById('m-ipc-params');
-  if(ipcDiv){
-    ipcDiv.innerHTML = chemParams.map(p => `
-      <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;background:var(--bg);transition:all .15s"
-        onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor=document.getElementById('ipc-chk-${p.key.replace(/ /g,'_')}').checked?'var(--accent)':'var(--border)'">
-        <input type="checkbox" id="ipc-chk-${p.key.replace(/ /g,'_')}" value="${p.key}"
-          ${(existingIPC.includes(p.key)||isCustomType)?'checked':''}
-          onchange="this.closest('label').style.borderColor=this.checked?'var(--accent)':'var(--border)';this.closest('label').style.background=this.checked?'rgba(3,105,161,.06)':'var(--bg)';"
-          style="accent-color:var(--accent)">
-        ${p.label}${p.unit?' <span style="color:var(--text3)">('+p.unit+')</span>':''}
-      </label>`).join('');
-    // Cocher les already-checked avec style
-    chemParams.forEach(p => {
-      const chk = document.getElementById('ipc-chk-'+p.key.replace(/ /g,'_'));
-      const lbl = chk?.closest('label');
-      if(chk?.checked && lbl){ lbl.style.borderColor='var(--accent)'; lbl.style.background='rgba(3,105,161,.06)'; }
-    });
-  }
+  const tbody = document.getElementById('m-params-tbody');
+  if(!tbody) return;
 
-  // Libération — tous les params avec valeur cible, pré-cochés selon type
-  const libDiv = document.getElementById('m-lib-params');
-  const isCustomType = document.getElementById('m-type')?.value === '__custom__';
-  if(libDiv){
-    const allLibParams = ALL_PARAMS.filter(p => !p.fixed);
-    libDiv.innerHTML = allLibParams.map(p => {
-      const isActive = existingLib.includes(p.key) || !type || isCustomType;
-      const curVal = editingCode ? (getRef(editingCode)?.[p.key]??'') : '';
-      const tolLabel = p.tol ? `±${p.tol}%` : 'libre';
-      return `<div class="pg" style="${!isActive?'opacity:.5':''}">
-        <label style="display:flex;align-items:center;gap:5px">
-          <input type="checkbox" class="lib-param-chk" id="lib-chk-${p.key.replace(/ /g,'_')}" value="${p.key}"
-            ${isActive?'checked':''}
-            onchange="document.getElementById('lib-val-${p.key.replace(/ /g,'_')}').disabled=!this.checked;this.closest('div').style.opacity=this.checked?'1':'.5'"
-            style="accent-color:var(--success)">
-          ${p.label}${p.unit?' <span style="color:var(--text3)">('+p.unit+')</span>':''}
-          <span style="font-size:10px;color:var(--text3);margin-left:auto">${tolLabel}</span>
-        </label>
-        <input type="number" step="any" id="lib-val-${p.key.replace(/ /g,'_')}" value="${curVal}" placeholder="—"
-          ${!isActive?'disabled':''}
-          style="margin-top:4px">
-      </div>`;
-    }).join('');
-  }
+  // Paramètres standards (tout sauf fixes : pH, Osmolalité, HMF)
+  const fixedKeys = new Set(['pH','Osmolalité','HMF']);
+  const baseParams = ALL_PARAMS.filter(p => !fixedKeys.has(p.key));
+
+  let rows = '';
+  baseParams.forEach(p => {
+    const isIPC = existingIPC.includes(p.key) || (isCustomType && existingIPC.includes(p.key));
+    const isLib = existingLib.includes(p.key) || isCustomType;
+    const libVal = editingCode ? (getRef(editingCode)?.[p.key] ?? '') : '';
+    const ipcVal = editingCode ? (getRef(editingCode)?.['ipc_'+p.key] ?? '') : '';
+    // Tolérance personnalisée éventuelle
+    const tol = editingCode ? (getRef(editingCode)?.['tol_'+p.key] ?? PARAM_TOLERANCE[p.key] ?? 5) : (PARAM_TOLERANCE[p.key] ?? 5);
+    // Unité personnalisée éventuelle
+    const unit = editingCode ? (getRef(editingCode)?.['unit_'+p.key] ?? p.unit ?? '') : (p.unit ?? '');
+    rows += _buildParamRow(p.key, p.label, unit, isIPC, isLib, ipcVal, libVal, tol, false);
+  });
+
+  // Paramètres personnalisés ajoutés dans cette session
+  window._customParams.forEach(cp => {
+    rows += _buildParamRow(cp.key, cp.label, cp.unit||'', cp.ipc||false, cp.lib||true, cp.ipcVal||'', cp.libVal||'', cp.tol||5, true);
+  });
+
+  tbody.innerHTML = rows;
+
+  // Appliquer l'état visuel initial
+  baseParams.forEach(p => updateParamRowState(p.key.replace(/ /g,'_')));
+  window._customParams.forEach(cp => updateParamRowState(cp.key.replace(/ /g,'_')));
 }
+
+function _buildParamRow(key, label, unit, isIPC, isLib, ipcVal, libVal, tol, isCustom){
+  const kid = key.replace(/ /g,'_');
+  const delCell = isCustom
+    ? `<td style="padding:4px 4px;text-align:center"><button type="button" onclick="removeCustomParam('${kid}')"
+        style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;line-height:1" title="Supprimer">×</button></td>`
+    : '<td></td>';
+  return `<tr id="mrow-${kid}" style="border-bottom:1px solid var(--border)">
+    <td style="padding:7px 10px;font-weight:600;font-size:12px;white-space:nowrap">
+      ${label}${unit ? `<span style="font-weight:400;color:var(--text3);font-size:10px;margin-left:4px">${unit}</span>` : ''}
+    </td>
+    <td style="padding:6px 8px;text-align:center">
+      <input type="checkbox" id="mchk-ipc-${kid}" ${isIPC?'checked':''}
+        onchange="updateParamRowState('${kid}')"
+        style="accent-color:#0369a1;width:16px;height:16px;cursor:pointer;vertical-align:middle">
+    </td>
+    <td style="padding:4px 6px;min-width:100px">
+      <input type="number" step="any" id="mval-ipc-${kid}" value="${ipcVal!==null&&ipcVal!==''?ipcVal:''}" placeholder="facultatif"
+        style="width:100%;padding:5px 7px;border:1.5px solid #bfdbfe;border-radius:6px;font-size:12px;background:#f0f9ff;box-sizing:border-box"
+        title="Valeur cible IPC (si différente de Lib)">
+    </td>
+    <td style="padding:6px 8px;text-align:center">
+      <input type="checkbox" id="mchk-lib-${kid}" ${isLib?'checked':''}
+        onchange="updateParamRowState('${kid}')"
+        style="accent-color:#059669;width:16px;height:16px;cursor:pointer;vertical-align:middle">
+    </td>
+    <td style="padding:4px 6px;min-width:100px">
+      <input type="number" step="any" id="mval-lib-${kid}" value="${libVal!==null&&libVal!==''?libVal:''}" placeholder="valeur cible"
+        style="width:100%;padding:5px 7px;border:1.5px solid #bbf7d0;border-radius:6px;font-size:12px;background:#f0fdf4;box-sizing:border-box"
+        title="Valeur cible de libération">
+    </td>
+    <td style="padding:4px 6px">
+      <input type="number" step="0.5" min="0" max="50" id="mtol-${kid}" value="${tol}"
+        style="width:65px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;box-sizing:border-box"
+        title="Tolérance ±% (ex: 5 = ±5%)">
+    </td>
+    <td style="padding:4px 6px">
+      <input type="text" id="munit-${kid}" value="${unit}" placeholder="mmol/L"
+        style="width:70px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;box-sizing:border-box"
+        title="Unité (ex: mmol/L, g/L, %, mS/cm)">
+    </td>
+    ${delCell}
+  </tr>`;
+}
+
+function updateParamRowState(kid){
+  const row = document.getElementById('mrow-'+kid);
+  if(!row) return;
+  const ipcChk = document.getElementById('mchk-ipc-'+kid);
+  const libChk = document.getElementById('mchk-lib-'+kid);
+  const ipcVal = document.getElementById('mval-ipc-'+kid);
+  const libVal = document.getElementById('mval-lib-'+kid);
+  const anyOn = ipcChk?.checked || libChk?.checked;
+  row.style.opacity = anyOn ? '1' : '0.4';
+  row.style.background = anyOn ? '' : 'var(--surface2)';
+  if(ipcVal){ ipcVal.disabled = !ipcChk?.checked; ipcVal.style.opacity = ipcChk?.checked?'1':'0.4'; }
+  if(libVal){ libVal.disabled = !libChk?.checked; libVal.style.opacity = libChk?.checked?'1':'0.4'; }
+}
+
+function addCustomParam(){
+  // Ouvrir la modale élégante au lieu du prompt natif
+  const mo = document.getElementById('modal-add-param');
+  if(!mo) return;
+  // Reset champs
+  document.getElementById('ap-name').value = '';
+  document.getElementById('ap-unit').value = '';
+  document.getElementById('ap-tol').value = '5';
+  document.getElementById('ap-ipc').checked = false;
+  document.getElementById('ap-lib').checked = true;
+  const errEl = document.getElementById('ap-name-err');
+  if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
+  const nameInput = document.getElementById('ap-name');
+  // Remettre à zéro le style du champ nom
+  if(nameInput) nameInput.style.borderColor = 'var(--border)';
+  mo.style.display = 'flex';
+  setTimeout(()=>{ document.getElementById('ap-name')?.focus(); }, 80);
+}
+
+function closeAddParamModal(){
+  const mo = document.getElementById('modal-add-param');
+  if(mo){ mo.style.display='none'; mo.classList.remove('show'); }
+}
+
+function confirmAddParam(){
+  const nameEl = document.getElementById('ap-name');
+  const k = nameEl?.value?.trim();
+  const errEl = document.getElementById('ap-name-err');
+
+  // Validation
+  if(!k){
+    nameEl.style.borderColor = 'var(--danger)';
+    if(errEl){ errEl.textContent = 'Le nom est obligatoire.'; errEl.style.display='block'; }
+    nameEl.focus();
+    return;
+  }
+  if(!window._customParams) window._customParams = [];
+  const allKeys = ALL_PARAMS.map(p=>p.key).concat(window._customParams.map(p=>p.key));
+  if(allKeys.includes(k)){
+    nameEl.style.borderColor = 'var(--danger)';
+    if(errEl){ errEl.textContent = 'Ce paramètre existe déjà dans la liste.'; errEl.style.display='block'; }
+    nameEl.focus();
+    return;
+  }
+
+  const unit = document.getElementById('ap-unit')?.value?.trim() || '';
+  const tol  = parseFloat(document.getElementById('ap-tol')?.value) || 5;
+  const ipc  = document.getElementById('ap-ipc')?.checked || false;
+  const lib  = document.getElementById('ap-lib')?.checked || true;
+
+  window._customParams.push({key:k, label:k, unit, ipc, lib, ipcVal:'', libVal:'', tol});
+  closeAddParamModal();
+  renderModalParams();
+  renderFixedLimitsSection();
+  setTimeout(()=>{
+    const el = document.getElementById('mrow-'+k.replace(/ /g,'_'));
+    if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 120);
+  notify(`Paramètre "${k}" ajouté`, 'success');
+}
+
+function removeCustomParam(kid){
+  if(!window._customParams) return;
+  window._customParams = window._customParams.filter(p => p.key.replace(/ /g,'_') !== kid);
+  renderModalParams();
+}
+
 
 function getEffectiveModalType(){
   const sel = document.getElementById('m-type');
@@ -1382,82 +1570,103 @@ function getEffectiveModalType(){
 function getNum(id){ const el=document.getElementById(id); return (!el||el.value==='')?null:parseFloat(el.value); }
 
 function renderFixedLimitsSection(){
-  const type = document.getElementById('m-type').value;
+  const type = getEffectiveModalType();
   const FIXED_PARAMS = [
-    { key:'pH',        label:'pH',                  applicable: Object.keys(FIXED_LIMITS.pH) },
-    { key:'Osmolalité',label:'Osmolalité (mOsm/kg)', applicable: Object.keys(FIXED_LIMITS.Osmolalité) },
+    { key:'pH',         label:'pH',                  applicable: Object.keys(FIXED_LIMITS.pH||{}) },
+    { key:'Osmolalité', label:'Osmolalité (mOsm/kg)', applicable: Object.keys(FIXED_LIMITS.Osmolalité||{}) },
   ];
   const sec = document.getElementById('m-fixed-limits-section');
+  if(!sec) return;
   const rows = FIXED_PARAMS.map(fp => {
-    if (!fp.applicable.includes(type)) return '';
+    if(!fp.applicable.includes(type) && type) {
+      // Permettre d'ajouter pH/Osmolalité pour tout type (même nouveau)
+    }
     const cur = FIXED_LIMITS[fp.key]?.[type] || [null, null];
+    const fpIsIPC = fp.key==='pH' && type!=='Cartouche';
+    const fpBadge = fpIsIPC
+      ? `<span class="badge b-blue" style="font-size:9px;padding:1px 5px;margin-left:5px">IPC</span><span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:2px">Lib</span>`
+      : `<span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:5px">Lib</span>`;
     return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:10px">
-      <div class="pg" style="margin:0"><label style="font-weight:600">${fp.label}</label>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">Paramètre fixe par type</div>
+      <div class="pg" style="margin:0">
+        <label style="font-weight:600;display:flex;align-items:center">${fp.label}${fpBadge}</label>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">Limites fixes par type — LSI/LSS directs</div>
       </div>
       <div class="pg" style="margin:0"><label>LSI <span style="color:var(--danger)">▼</span></label>
-        <input type="number" step="any" id="mfl-${fp.key}-lsi" value="${cur[0]??''}" placeholder="—">
+        <input type="number" step="any" id="mfl-${fp.key}-lsi" value="${cur[0]??''}" placeholder="—"
+          style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%;box-sizing:border-box">
       </div>
       <div class="pg" style="margin:0"><label>LSS <span style="color:var(--danger)">▲</span></label>
-        <input type="number" step="any" id="mfl-${fp.key}-lss" value="${cur[1]??''}" placeholder="—">
+        <input type="number" step="any" id="mfl-${fp.key}-lss" value="${cur[1]??''}" placeholder="—"
+          style="padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;width:100%;box-sizing:border-box">
       </div>
     </div>`;
   }).filter(Boolean);
   sec.innerHTML = rows.length
     ? rows.join('')
-    : '<div style="color:var(--text3);font-size:12px;padding:6px 0">Aucune limite fixe pour ce type de produit.</div>';
+    : `<div style="color:var(--text3);font-size:12px;padding:6px 0">
+        Aucune limite fixe prédéfinie pour ce type.
+        Vous pouvez saisir des valeurs LSI/LSS ci-dessus pour pH et/ou Osmolalité.
+       </div>`;
 }
+
 
 function getFixedNum(id){ const el=document.getElementById(id); return (!el||el.value==='')?null:parseFloat(el.value); }
 
 function openModal(code=null){
   if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
-  editingCode=code;
-  const modal=document.getElementById('modal-produit');
-  const titleEl=document.getElementById('modal-title-text');
-  const delBtn=document.getElementById('btn-delete-product');
-  const commentSec=document.getElementById('m-comment-section');
-  const commentEl=document.getElementById('m-comment');
+  editingCode = code;
+  window._customParams = []; // reset params custom à chaque ouverture
+  const modal = document.getElementById('modal-produit');
+  const titleEl = document.getElementById('modal-title-text');
+  const delBtn = document.getElementById('btn-delete-product');
+  const commentSec = document.getElementById('m-comment-section');
+  const commentEl = document.getElementById('m-comment');
 
   if(code){
-    const ref=getRef(code);
-    titleEl.textContent='Modifier le produit — '+code;
-    delBtn.style.display='inline-flex';
-    if(commentSec) commentSec.style.display='block';
-    if(commentEl) commentEl.value='';
-    document.getElementById('m-code').value=ref.Code;
-    document.getElementById('m-code').readOnly=true;
-    document.getElementById('m-desig').value=ref.Désignation||'';
-    const typeEl=document.getElementById('m-type');
-    // Sélectionner le bon type (peut-être personnalisé)
-    const opts=[...typeEl.options].map(o=>o.value);
-    if(opts.includes(ref.Type||'')){ typeEl.value=ref.Type||''; }
-    else {
-      // Type personnalisé — ajouter si absent
-      const opt=document.createElement('option');
-      opt.value=ref.Type; opt.text=ref.Type;
-      typeEl.insertBefore(opt, typeEl.lastElementChild);
-      typeEl.value=ref.Type;
+    const ref = getRef(code);
+    titleEl.textContent = 'Modifier le produit — ' + code;
+    delBtn.style.display = 'inline-flex';
+    if(commentSec) commentSec.style.display = 'block';
+    if(commentEl){ commentEl.value=''; document.getElementById('m-comment-label').textContent=' (optionnel — motif de modification)'; }
+    document.getElementById('m-code').value = ref.Code;
+    document.getElementById('m-code').readOnly = true;
+    document.getElementById('m-desig').value = ref.Désignation||'';
+    const typeEl = document.getElementById('m-type');
+    const opts = [...typeEl.options].map(o=>o.value);
+    if(opts.includes(ref.Type||'')){
+      typeEl.value = ref.Type||'';
+      document.getElementById('fg-custom-type').style.display='none';
+    } else if(ref.Type){
+      typeEl.value = '__custom__';
+      document.getElementById('fg-custom-type').style.display='block';
+      document.getElementById('m-custom-type').value = ref.Type;
     }
   } else {
-    titleEl.textContent='Ajouter un produit';
-    delBtn.style.display='none';
-    if(commentSec) commentSec.style.display='block';
-    const lblC=document.getElementById('m-comment-label'); if(lblC) lblC.textContent='(optionnel — noter le contexte de création)';
-    document.getElementById('m-code').readOnly=false;
-    document.getElementById('m-code').value='';
-    document.getElementById('m-desig').value='';
-    document.getElementById('m-type').value='Solution Dialyse Acide';
-    const customDiv=document.getElementById('fg-custom-type');
-    if(customDiv) customDiv.style.display='none';
+    titleEl.textContent = 'Ajouter un produit';
+    delBtn.style.display = 'none';
+    if(commentSec) commentSec.style.display = 'block';
+    if(commentEl){ commentEl.value=''; document.getElementById('m-comment-label').textContent=' (optionnel — motif de création)'; }
+    document.getElementById('m-code').value = '';
+    document.getElementById('m-code').readOnly = false;
+    document.getElementById('m-desig').value = '';
+    document.getElementById('m-type').value = 'Solution Dialyse Acide';
+    document.getElementById('fg-custom-type').style.display = 'none';
   }
+
   renderModalParams();
   renderFixedLimitsSection();
-  modal.style.display='flex';
+  modal.style.display = 'flex';
+  setTimeout(()=>{
+    const f = document.getElementById('m-code');
+    if(f && !f.readOnly) f.focus();
+  }, 60);
 }
 
+
 function closeModal(){
-  document.getElementById('modal-produit').classList.remove('show');
+  const m = document.getElementById('modal-produit');
+  m.classList.remove('show');
+  m.style.display='none';
   editingCode=null;
 }
 
@@ -1465,93 +1674,121 @@ function getNum(id){ const v=document.getElementById(id).value; return v===''?nu
 
 function saveProduct(){
   if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
-  const code=document.getElementById('m-code').value.trim().toUpperCase();
-  const desig=document.getElementById('m-desig').value.trim();
-  const type=getEffectiveModalType();
-  const comment=document.getElementById('m-comment')?.value?.trim()||'';
-  if(!code||!desig) { notify('Code et désignation requis','error'); return; }
+  const code = document.getElementById('m-code').value.trim().toUpperCase();
+  const desig = document.getElementById('m-desig').value.trim();
+  const type = getEffectiveModalType();
+  const comment = document.getElementById('m-comment')?.value?.trim()||'';
+  if(!code||!desig){ notify('Code et désignation requis','error'); return; }
   if(!type){ notify('Type de produit requis','error'); return; }
-  if(!editingCode && REF_DATA.find(r=>r.Code===code)) { notify('Ce code existe déjà','error'); return; }
+  if(!editingCode && REF_DATA.find(r=>r.Code===code)){ notify('Ce code produit existe déjà','error'); return; }
 
-  // Lire les paramètres Libération cochés
-  const obj={Code:code, Désignation:desig, Type:type};
-  document.querySelectorAll('#m-lib-params .lib-param-chk').forEach(chk => {
-    if(chk.checked){
-      const pk = chk.value;
-      const valId = 'lib-val-'+pk.replace(/ /g,'_');
-      const el = document.getElementById(valId);
-      obj[pk] = el && el.value!=='' ? parseFloat(el.value) : null;
+  const obj = {Code:code, Désignation:desig, Type:type};
+  const ipcParamsList = [], libParamsList = [];
+
+  // ── Lire le tableau des paramètres ──────────────────────────────────────
+  const fixedKeys = new Set(['pH','Osmolalité','HMF']);
+  const allTableParams = ALL_PARAMS.filter(p=>!fixedKeys.has(p.key)).concat(window._customParams||[]);
+
+  allTableParams.forEach(p => {
+    const kid = p.key.replace(/ /g,'_');
+    const ipcChk = document.getElementById('mchk-ipc-'+kid);
+    const libChk = document.getElementById('mchk-lib-'+kid);
+    const ipcValEl = document.getElementById('mval-ipc-'+kid);
+    const libValEl = document.getElementById('mval-lib-'+kid);
+    const tolEl = document.getElementById('mtol-'+kid);
+    const unitEl = document.getElementById('munit-'+kid);
+
+    if(ipcChk?.checked) ipcParamsList.push(p.key);
+    if(libChk?.checked) libParamsList.push(p.key);
+
+    // Valeur cible Lib (colonne principale)
+    const libVal = libValEl&&libValEl.value!=='' ? parseFloat(libValEl.value) : null;
+    obj[p.key] = libVal;
+
+    // Valeur cible IPC si différente de Lib
+    const ipcValRaw = ipcValEl&&ipcValEl.value!=='' ? parseFloat(ipcValEl.value) : null;
+    obj['ipc_'+p.key] = (ipcChk?.checked && ipcValRaw!==null) ? ipcValRaw : null;
+
+    // Tolérance personnalisée
+    if(tolEl && tolEl.value!==''){
+      const tol = parseFloat(tolEl.value);
+      const defaultTol = PARAM_TOLERANCE[p.key]??5;
+      if(!isNaN(tol) && tol !== defaultTol) obj['tol_'+p.key] = tol;
+    }
+
+    // Unité personnalisée
+    if(unitEl){
+      const unit = unitEl.value.trim();
+      const defaultUnit = (ALL_PARAMS.find(x=>x.key===p.key)||{}).unit||'';
+      if(unit && unit !== defaultUnit) obj['unit_'+p.key] = unit;
     }
   });
-  // S'assurer que les params non-cochés sont null
-  ALL_PARAMS.filter(p=>!p.fixed).forEach(p=>{ if(!(p.key in obj)) obj[p.key]=null; });
 
-  // Lire les paramètres IPC cochés
-  const ipcChecked = [...document.querySelectorAll('#m-ipc-params input[type=checkbox]:checked')].map(c=>c.value);
-
-  // Mettre à jour PARAMS_BY_TYPE et IPC_PARAMS_BY_TYPE
-  const libParams = ALL_PARAMS.filter(p=>!p.fixed && p.key in obj && obj[p.key]!==null).map(p=>p.key);
-  // Ajouter pH, Poids, Rendement selon le type (toujours présents en lib)
-  const fixedForType = ['Poids','Rendement'];
-  if(FIXED_LIMITS.pH?.[type]) fixedForType.push('pH');
-  if(FIXED_LIMITS.Osmolalité?.[type]) fixedForType.push('Osmolalité');
-  const allLibForType = [...new Set([...libParams, ...fixedForType])];
-  PARAMS_BY_TYPE[type] = allLibForType;
-  IPC_PARAMS_BY_TYPE[type] = ipcChecked;
-
-  // Save fixed limits (pH, Poids, Osmolalité) — appliqués au type produit
-  ['pH','Poids','Osmolalité'].forEach(fp => {
+  // ── Limites fixes (pH, Osmolalité) ─────────────────────────────────────
+  ['pH','Osmolalité'].forEach(fp => {
     const lsiEl = document.getElementById(`mfl-${fp}-lsi`);
     const lssEl = document.getElementById(`mfl-${fp}-lss`);
-    if(!lsiEl || !lssEl) return;
-    const lsi = lsiEl.value==='' ? null : parseFloat(lsiEl.value);
-    const lss = lssEl.value==='' ? null : parseFloat(lssEl.value);
+    if(!lsiEl||!lssEl) return;
+    const lsi = lsiEl.value===''?null:parseFloat(lsiEl.value);
+    const lss = lssEl.value===''?null:parseFloat(lssEl.value);
     if(lsi!==null && lss!==null){
       if(!FIXED_LIMITS[fp]) FIXED_LIMITS[fp]={};
       FIXED_LIMITS[fp][type] = [lsi, lss];
-      sbUpsert('limites_fixes',{parametre:fp,type_produit:type,lsi,lss,updated_at:new Date().toISOString()},'parametre,type_produit').catch(()=>{});
+      // pH : IPC si type != Cartouche
+      if(fp==='pH'){
+        libParamsList.push('pH');
+        if(type!=='Cartouche') ipcParamsList.push('pH');
+      } else {
+        libParamsList.push(fp);
+      }
+      sbUpsert('limites_fixes',{parametre:fp,type_produit:type,lsi,lss,updated_at:new Date().toISOString()},'parametre,type_produit');
     }
   });
 
+  // ── Poids + Rendement (toujours Lib) ───────────────────────────────────
+  const poidsLib = document.getElementById('mval-lib-Poids');
+  if(poidsLib&&poidsLib.value!=='') obj['Poids']=parseFloat(poidsLib.value);
+  if(document.getElementById('mchk-lib-Poids')?.checked) libParamsList.push('Poids');
+  if(document.getElementById('mchk-lib-Rendement')?.checked) libParamsList.push('Rendement');
+
+  // ── Mettre à jour les tables de référence globales ─────────────────────
+  PARAMS_BY_TYPE[type] = [...new Set(libParamsList)];
+  IPC_PARAMS_BY_TYPE[type] = [...new Set(ipcParamsList)];
+
+  // ── S'assurer que les params non-cochés sont null ──────────────────────
+  ALL_PARAMS.filter(p=>!fixedKeys.has(p.key)).forEach(p=>{
+    if(!(p.key in obj)) obj[p.key]=null;
+    if(!('ipc_'+p.key in obj)) obj['ipc_'+p.key]=null;
+  });
+
+  // ── Sauvegarder ────────────────────────────────────────────────────────
   if(editingCode){
-    // Capturer avant/après
-    const old = REF_DATA.find(r=>r.Code===editingCode)||{};
-    const avant = {}, apres = {};
-    const allFields = ['Désignation','Type','Sodium','Potassium','Calcium','Magnésium','Chlorures','Acétates','Glucose','Bicarbonates','Chlorure de sodium','Rendement'];
-    allFields.forEach(f => {
-      const ov = old[f]??null, nv = obj[f]??null;
-      if(String(ov) !== String(nv)){ avant[f]=ov!==null?ov:'—'; apres[f]=nv!==null?nv:'—'; }
-    });
-    // Comparer aussi les limites fixes pH/Poids/Osmolalité
-    ['pH','Poids','Osmolalité'].forEach(fp => {
-      const lsiEl=document.getElementById(`mfl-${fp}-lsi`), lssEl=document.getElementById(`mfl-${fp}-lss`);
-      if(!lsiEl||!lssEl) return;
-      const newLsi=lsiEl.value===''?null:parseFloat(lsiEl.value);
-      const newLss=lssEl.value===''?null:parseFloat(lssEl.value);
-      const cur = FIXED_LIMITS[fp]?.[type];
-      const oldLsi=cur?cur[0]:null, oldLss=cur?cur[1]:null;
-      if(String(oldLsi)!==String(newLsi)||String(oldLss)!==String(newLss)){
-        avant[`${fp} [LSI/LSS]`] = `${oldLsi??'—'} / ${oldLss??'—'}`;
-        apres[`${fp} [LSI/LSS]`] = `${newLsi??'—'} / ${newLss??'—'}`;
-      }
+    const oldRef = REF_DATA.find(r=>r.Code===editingCode)||{};
+    const avant={}, apres={};
+    const scanFields = ['Désignation','Type',...ALL_PARAMS.map(p=>p.key)];
+    scanFields.forEach(f=>{
+      const ov=oldRef[f]??null, nv=obj[f]??null;
+      if(String(ov)!==String(nv)){ avant[f]=ov??'—'; apres[f]=nv??'—'; }
     });
     const diffCount = Object.keys(avant).length;
     const diffStr = diffCount>0 ? JSON.stringify({avant,apres}) : '{}';
-
-    const idx=REF_DATA.findIndex(r=>r.Code===editingCode);
+    const idx = REF_DATA.findIndex(r=>r.Code===editingCode);
     if(idx>=0) REF_DATA[idx]=obj;
-    sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()},'code').catch(()=>{});
+    sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()});
+    logAction('produit',`Produit ${code} — ${diffCount} champ(s) modifié(s)${comment?' — '+comment:''}`,diffStr);
     notify('Produit modifié avec succès !');
-    logAction('produit', `Produit ${code} — ${diffCount} champ(s) modifié(s)`, diffStr);
   } else {
     REF_DATA.push(obj);
-    sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()},'code').catch(()=>{});
+    sbUpsert('produits',{code:obj.Code,designation:obj.Désignation||'',type:obj.Type||'',specs:obj,updated_at:new Date().toISOString()});
+    logAction('produit',`Produit ${code} créé${comment?' — '+comment:''}`,null);
     notify('Produit ajouté avec succès !');
-    logAction('produit', `Produit ${code} — ${desig} ajouté`);
   }
+
+  window._customParams = [];
   closeModal();
-  refreshAll();
+  renderSpecs();
 }
+
 
 function deleteProduct(){
   if(!isAdmin()){ notify('Action réservée aux administrateurs.','error'); return; }
@@ -2206,10 +2443,10 @@ function renderIPCParamGrid(ref, params){
     let inputs = '';
     for(let i=0;i<IPC_MAX_REPEATS;i++){
       inputs += `<input type="number" step="any" class="ipc-input" id="ipc-${pid}-${i}"
-        placeholder="${i===0?'#1':''}"
-        style="width:66px;padding:5px 7px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg)"
-        oninput="updateIPCMeanNew('${p}','${pid}',${spec},'${ref.Type||''}')"
-        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">`;
+        placeholder="${i===0?'#1':'#'+(i+1)}"
+        style="width:66px;padding:5px 7px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);transition:border-color .15s,background .15s"
+        oninput="updateIPCMeanNew('${p}','${pid}',${spec},'${ref.Type||''}');checkIPCInputNC(this,${spec},'${ref.Type||''}','${p}')"
+        onfocus="this.style.borderColor=this._nc?'var(--danger)':this.value?'var(--success)':'var(--accent)'" onblur="if(!this.value){this.style.borderColor='var(--border)';this.style.background='var(--bg)'}">`;
     }
     return `<div class="pg ipc-param-block" style="grid-column:1/-1">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -2221,6 +2458,22 @@ function renderIPCParamGrid(ref, params){
       </div>
     </div>`;
   }).join('');
+}
+
+function checkIPCInputNC(el, spec, type, param){
+  const v = parseFloat(el.value);
+  if(isNaN(v)||el.value===''){
+    el.style.borderColor='var(--border)';
+    el.style.background='var(--bg)';
+    el._nc=false; return;
+  }
+  const lim=getLimits(param, spec!==null&&spec!==undefined&&spec!==''?parseFloat(spec):null, type);
+  if(!lim){ el.style.borderColor='var(--accent)'; el.style.background='var(--bg)'; el._nc=false; return; }
+  const nc=(lim.lsi!==null&&v<lim.lsi)||v>lim.lss;
+  el._nc=nc;
+  el.style.borderColor=nc?'var(--danger)':'var(--success)';
+  el.style.background=nc?'rgba(239,68,68,.08)':'rgba(5,150,105,.06)';
+  el.title=nc?`⚠️ NC — hors [${fmt(lim.lsi,3)}–${fmt(lim.lss,3)}]`:`✓ Conforme [${fmt(lim.lsi,3)}–${fmt(lim.lss,3)}]`;
 }
 
 function updateIPCMeanNew(param, pid, spec, type){
@@ -2540,8 +2793,10 @@ function resetForm(){
 
 function renderSavedLots(){
   const sec=document.getElementById('saved-lots-section');
-  if(!savedLots.length){sec.style.display='none';return;}
-  sec.style.display='block';
+  if(!sec) return;
+  if(!savedLots.length){ sec.style.display='none'; return; }
+  const saisieActive = document.getElementById('page-saisie')?.classList.contains('active');
+  if(saisieActive) sec.style.display='block';
   document.getElementById('saved-lots-header').textContent=`Lots saisis manuellement (${savedLots.length})`;
   filterSavedLots();
 }
