@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f0f4f8;--surface:#fff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#cbd5e1;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--accent:#0369a1;--accent-light:#e0f2fe;--accent-dark:#075985;--success:#059669;--success-light:#d1fae5;--warning:#d97706;--warning-light:#fef3c7;--danger:#dc2626;--danger-light:#fee2e2;--purple:#7c3aed;--purple-light:#ede9fe;--mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;--r:10px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shm:0 4px 12px rgba(0,0,0,.10)}
@@ -1143,6 +1144,11 @@ function initSidebarState(){
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
+  // Masquer explicitement la liste des lots quand on quitte la page Saisie
+  if(id !== 'saisie'){
+    const sec = document.getElementById('saved-lots-section');
+    if(sec) sec.style.display = 'none';
+  }
   document.getElementById('page-'+id).classList.add('active');
   const sbBtn = document.getElementById('sb-'+id);
   if(sbBtn) sbBtn.classList.add('active');
@@ -1322,7 +1328,13 @@ function renderSpecs(){
       const su=getUnit(s.p,ref.Type);
       const suBadge=su?`<span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:4px">${su}</span>`:'';
       return `<tr style="background:#fafafa">
-        <td style="font-weight:500">${s.p}${suBadge} <span class="badge b-yellow" style="font-size:9px">fixe</span></td>
+        <td style="font-weight:500">${s.p}${suBadge}${
+          s.p==='pH' && ref.Type!=='Cartouche'
+            ? '<span class="badge b-blue" style="font-size:9px;padding:1px 5px;margin-left:3px">IPC</span><span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:2px">Lib</span>'
+            : s.p==='pH'
+              ? '<span class="badge b-green" style="font-size:9px;padding:1px 5px;margin-left:3px">Lib</span>'
+              : ''
+        } <span class="badge b-yellow" style="font-size:9px">fixe</span></td>
         <td class="spec-na">fixé par type</td>
         <td class="tc">—</td>
         <td class="spec-val" style="color:var(--danger)">${fmt(lim.lsi,2)}</td>
@@ -1835,61 +1847,125 @@ function onCodeChange(){
 // COPIE RAPPORT APR
 // ═══════════════════════════════════════════════════
 async function copyForReport(){
+  const title   = document.getElementById('chart-title-text')?.textContent || '';
+  const code    = document.getElementById('f-code')?.value || '';
+  const param   = document.getElementById('f-param')?.value || '';
+  const statut  = document.getElementById('f-statut')?.value || 'Tous';
+  const date    = new Date().toLocaleDateString('fr-FR');
+
+  // ── Afficher un indicateur de chargement ──────────────────────────────
+  const btn = document.querySelector('[onclick="copyForReport()"]');
+  const origTxt = btn?.innerHTML || '';
+  if(btn){ btn.innerHTML='⏳ Capture en cours…'; btn.disabled=true; }
+
   try {
-    // 1. Capturer le canvas en PNG
-    const canvas = document.getElementById('mainChart');
-    const imgData = canvas ? canvas.toDataURL('image/png') : null;
+    // ── 1. Capturer la zone analyse complète avec html2canvas ───────────
+    const zone = document.getElementById('page-analyse');
+    if(!zone) throw new Error('Zone analyse introuvable');
 
-    // 2. Récupérer les stats texte
-    const sg = document.getElementById('stat-grid');
-    const ic = document.getElementById('interp-text');
-    const title = document.getElementById('chart-title-text')?.textContent || '';
-    const meta = document.getElementById('filter-meta')?.textContent?.trim() || '';
+    // Masquer temporairement le panneau de filtres pour la capture
+    const filterPanel = zone.querySelector('.filter-panel') || zone.querySelector('.card:first-child');
 
-    // 3. Construire HTML riche pour le presse-papiers
-    const statsHtml = sg ? sg.innerHTML : '';
-    const interpHtml = ic ? ic.innerHTML : '';
-    const date = new Date().toLocaleDateString('fr-FR');
+    // S'assurer que l'interp-card est visible pour la capture
+    const interpCard = document.getElementById('interp-card');
+    const interpWasHidden = interpCard?.style.display === 'none';
+    if(interpCard) interpCard.style.display = 'block';
 
-    const htmlContent = `
-<div style="font-family:Arial,sans-serif;max-width:900px;padding:20px">
-  <h2 style="color:#0369a1;border-bottom:2px solid #0369a1;padding-bottom:8px">${title}</h2>
-  <p style="color:#64748b;font-size:12px">Généré le ${date} — Application APR ARWAMEDIC</p>
-  ${imgData ? `<div style="margin:16px 0"><img src="${imgData}" style="max-width:100%;border:1px solid #e2e8f0;border-radius:8px"></div>` : ''}
-  <h3 style="color:#334155;margin-top:20px">Indicateurs statistiques</h3>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">${statsHtml}</div>
-  <h3 style="color:#334155;margin-top:20px">Interprétation</h3>
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px">${interpHtml}</div>
-</div>`;
-
-    // 4a. Essayer de copier avec l'image (API ClipboardItem)
-    if(window.ClipboardItem && imgData){
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-      // On tente aussi le HTML
-      try {
-        const htmlBlob = new Blob([htmlContent], {type:'text/html'});
-        await navigator.clipboard.write([
-          new ClipboardItem({'text/html': htmlBlob, 'image/png': blob})
-        ]);
-      } catch(e) {
-        // Fallback HTML seul
-        const htmlBlob = new Blob([htmlContent], {type:'text/html'});
-        await navigator.clipboard.write([new ClipboardItem({'text/html': htmlBlob})]);
+    // Capturer avec html2canvas
+    const canvas = await html2canvas(zone, {
+      scale: 1.8,
+      useCORS: true,
+      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg') || '#f8fafc',
+      logging: false,
+      ignoreElements: el => {
+        // Ignorer le panneau de filtres et les boutons d'action
+        return el.classList?.contains('filter-panel') ||
+               el.id === 'lots-scroll' ||
+               (el.tagName === 'BUTTON' && el.textContent?.includes('Copier pour rapport'));
       }
-    } else {
-      // Fallback texte brut
-      const txt = document.getElementById('chart-title-text')?.textContent + '\n\n' +
-        (sg?.innerText||'') + '\n\n' + (ic?.innerText||'');
-      await navigator.clipboard.writeText(txt);
+    });
+
+    // Restaurer interp-card si elle était cachée
+    if(interpCard && interpWasHidden) interpCard.style.display = 'none';
+
+    // ── 2. Convertir en PNG et proposer le téléchargement ───────────────
+    const imgData = canvas.toDataURL('image/png');
+
+    // Nom de fichier : APR_PFF012_Sodium_Liberation_2026-03-14.png
+    const safeParam = param.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,'');
+    const safeStatut = statut.replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,'');
+    const safeDate = new Date().toISOString().slice(0,10);
+    const filename = `APR_${code}_${safeParam}_${safeStatut}_${safeDate}.png`;
+
+    // Téléchargement automatique
+    const a = document.createElement('a');
+    a.href = imgData;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // ── 3. Aussi proposer d'ouvrir dans une fenêtre (pour copier/coller) ─
+    // Ouvrir rapport HTML avec la capture + stats
+    const sg = document.getElementById('stat-grid')?.innerHTML || '';
+    const sg2 = document.getElementById('stat-grid2')?.innerHTML || '';
+    const ic = document.getElementById('interp-text')?.innerHTML || '';
+
+    const w = window.open('', '_blank', 'width=1000,height=800,scrollbars=yes');
+    if(w){
+      w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Rapport APR — ${title}</title>
+<style>
+  body{font-family:Arial,sans-serif;padding:30px;max-width:1000px;margin:0 auto;background:#fff;color:#0f172a}
+  h1{color:#0369a1;font-size:20px;border-bottom:2px solid #0369a1;padding-bottom:10px;margin-bottom:6px}
+  h2{color:#334155;font-size:15px;margin-top:24px;margin-bottom:10px}
+  .meta{color:#64748b;font-size:12px;margin-bottom:20px}
+  .screenshot{width:100%;border:1px solid #e2e8f0;border-radius:10px;margin:16px 0;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .sc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:inline-block;margin:4px}
+  .sc-label{font-size:11px;color:#64748b;margin-bottom:2px}
+  .sc-value{font-size:18px;font-weight:700;color:#0f172a}
+  .interp{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px}
+  .no-print{display:block}
+  @media print{.no-print{display:none} body{padding:15px}}
+  .btn-bar{display:flex;gap:10px;margin-bottom:20px}
+  .btn-bar button{padding:9px 18px;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+</style></head><body>
+<div class="btn-bar no-print">
+  <button onclick="window.print()" style="background:#0369a1;color:#fff">🖨️ Imprimer / PDF</button>
+  <button onclick="window.close()" style="background:#e2e8f0;color:#334155">✕ Fermer</button>
+</div>
+<h1>${title}</h1>
+<div class="meta">Produit : <b>${code}</b> · Paramètre : <b>${param}</b> · Statut : <b>${statut}</b> · Extrait le ${date} — Application APR ARWAMEDIC</div>
+<h2>📊 Carte de contrôle</h2>
+<img src="${imgData}" class="screenshot" alt="Graphe ${param}">
+<h2>📈 Indicateurs statistiques</h2>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0">${sg}${sg2}</div>
+<h2>🔍 Interprétation</h2>
+<div class="interp">${ic}</div>
+</body></html>`);
+      w.document.close();
     }
 
-    // 5. Feedback visuel
-    notify('📋 Copié ! Collez dans Word/PowerPoint (Ctrl+V)', 'success');
-  } catch(e) {
-    // Fallback ultime : ouvrir une fenêtre avec le contenu
-    openReportWindow();
+    notify('✅ Capture PNG téléchargée + fenêtre rapport ouverte', 'success');
+
+  } catch(e){
+    console.error('Erreur capture:', e);
+    // Fallback : capture canvas seule
+    const canvas = document.getElementById('mainChart');
+    if(canvas){
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `APR_${code}_${param}_${new Date().toISOString().slice(0,10)}.png`;
+      a.click();
+      notify('📊 Graphe PNG téléchargé', 'success');
+    } else {
+      notify('Erreur lors de la capture — vérifiez les permissions du navigateur', 'error');
+    }
+  } finally {
+    if(btn){ btn.innerHTML = origTxt; btn.disabled = false; }
   }
 }
+
 
 function openReportWindow(){
   const canvas = document.getElementById('mainChart');
@@ -2247,7 +2323,7 @@ function onFilterChange(){
   // Chart
   const refForTitle=getRef(code);
   const desigForTitle=refForTitle?.Désignation||'';
-  document.getElementById('chart-title-text').textContent=`${desigForTitle ? desigForTitle+' — ' : ''}${param}${unit?' ('+unit+')':''} · ${code}`;
+  document.getElementById('chart-title-text').textContent=`${desigForTitle ? desigForTitle+' \u2014 ' : ''}${param}${unit?' ('+unit+')':''} · ${document.getElementById('f-statut')?.value||'Tous'}  [${code}]`;
   document.getElementById('chart-nc-badge').innerHTML=ncPts.length>0?`<span class="badge b-red">⚠️ ${ncPts.length} hors limites</span>`:'';
   const chartPts=filtered
     .filter(r=>r[param]!==null&&r[param]!==undefined&&!isNaN(r[param]))
@@ -2444,9 +2520,9 @@ function renderIPCParamGrid(ref, params){
     for(let i=0;i<IPC_MAX_REPEATS;i++){
       inputs += `<input type="number" step="any" class="ipc-input" id="ipc-${pid}-${i}"
         placeholder="${i===0?'#1':'#'+(i+1)}"
-        style="width:66px;padding:5px 7px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);transition:border-color .15s,background .15s"
+        style="width:66px;padding:5px 7px;font-size:12px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);transition:border-color .15s,background .15s,box-shadow .15s;outline:none"
         oninput="updateIPCMeanNew('${p}','${pid}',${spec},'${ref.Type||''}');checkIPCInputNC(this,${spec},'${ref.Type||''}','${p}')"
-        onfocus="this.style.borderColor=this._nc?'var(--danger)':this.value?'var(--success)':'var(--accent)'" onblur="if(!this.value){this.style.borderColor='var(--border)';this.style.background='var(--bg)'}">`;
+        onblur="if(!this.value){this.style.borderColor='var(--border)';this.style.background='var(--bg)';this.style.boxShadow='';this._nc=false;this.title=''}">`;
     }
     return `<div class="pg ipc-param-block" style="grid-column:1/-1">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -2465,15 +2541,28 @@ function checkIPCInputNC(el, spec, type, param){
   if(isNaN(v)||el.value===''){
     el.style.borderColor='var(--border)';
     el.style.background='var(--bg)';
+    el.style.boxShadow='';
+    el.title='';
     el._nc=false; return;
   }
-  const lim=getLimits(param, spec!==null&&spec!==undefined&&spec!==''?parseFloat(spec):null, type);
-  if(!lim){ el.style.borderColor='var(--accent)'; el.style.background='var(--bg)'; el._nc=false; return; }
+  // spec peut arriver comme string 'null' depuis le template littéral
+  const specNum = (spec===null||spec===undefined||spec===''||spec==='null'||spec==='undefined')
+    ? null : parseFloat(spec);
+  const lim = getLimits(param, specNum, type);
+  if(!lim){
+    // Pas de limites définies — contour neutre
+    el.style.borderColor='var(--border)';
+    el.style.background='var(--bg)';
+    el._nc=false; return;
+  }
   const nc=(lim.lsi!==null&&v<lim.lsi)||v>lim.lss;
   el._nc=nc;
-  el.style.borderColor=nc?'var(--danger)':'var(--success)';
-  el.style.background=nc?'rgba(239,68,68,.08)':'rgba(5,150,105,.06)';
-  el.title=nc?`⚠️ NC — hors [${fmt(lim.lsi,3)}–${fmt(lim.lss,3)}]`:`✓ Conforme [${fmt(lim.lsi,3)}–${fmt(lim.lss,3)}]`;
+  el.style.borderColor = nc ? 'var(--danger)' : 'var(--success)';
+  el.style.background  = nc ? 'rgba(239,68,68,.09)' : 'rgba(5,150,105,.07)';
+  el.style.boxShadow   = nc ? '0 0 0 2px rgba(239,68,68,.35)' : '0 0 0 2px rgba(5,150,105,.25)';
+  el.title = nc
+    ? `⚠️ NC — hors limites [${fmt(lim.lsi,3)} – ${fmt(lim.lss,3)}]`
+    : `✓ Conforme [${fmt(lim.lsi,3)} – ${fmt(lim.lss,3)}]`;
 }
 
 function updateIPCMeanNew(param, pid, spec, type){
@@ -2794,9 +2883,9 @@ function resetForm(){
 function renderSavedLots(){
   const sec=document.getElementById('saved-lots-section');
   if(!sec) return;
-  if(!savedLots.length){ sec.style.display='none'; return; }
   const saisieActive = document.getElementById('page-saisie')?.classList.contains('active');
-  if(saisieActive) sec.style.display='block';
+  if(!savedLots.length || !saisieActive){ sec.style.display='none'; return; }
+  sec.style.display='block';
   document.getElementById('saved-lots-header').textContent=`Lots saisis manuellement (${savedLots.length})`;
   filterSavedLots();
 }
@@ -2906,7 +2995,7 @@ function renderAlertes(){
         <td class="tc"><span class="badge b-red">${e>0?'+':''}${e.toFixed(2)}%</span></td>
         <td class="tc" style="white-space:nowrap">
           <button class="action-btn" onclick="goAnalyse('${a.code}')">Analyser →</button>
-          ${isAdm&&lotObj?`<button class="action-btn" style="background:var(--purple-light);color:var(--purple);margin-top:3px" onclick="openEditLotByLot('${a.lot}','${a.code}')">✏️ Modifier</button>`:''}
+          ${isAdm&&lotObj?`<button class="action-btn" style="background:var(--purple-light);color:var(--purple);margin-top:3px" onclick="openEditLotByLot('${a.lot}','${a.code}','${a.statut||'Lib\u00e9ration'}')">✏️ Modifier</button>`:''}
         </td>
       </tr>`;
     }).join('')}</tbody>
@@ -3732,8 +3821,12 @@ function openEditLot(idx){
 }
 
 
-function openEditLotByLot(lot, code){
-  const idx = savedLots.findIndex(l => l.Lot===lot && l.Code===code);
+function openEditLotByLot(lot, code, statut){
+  // Matcher sur Lot+Code+Statut en priorité pour éviter confusion IPC/Libération
+  let idx = (statut && statut!=='undefined')
+    ? savedLots.findIndex(l => l.Lot===lot && l.Code===code && l.Statut===statut)
+    : -1;
+  if(idx < 0) idx = savedLots.findIndex(l => l.Lot===lot && l.Code===code);
   if(idx>=0) openEditLot(idx);
   else notify('Lot non modifiable (données historiques)', 'error');
 }
@@ -3926,114 +4019,133 @@ const HELP_SECTIONS = {
   connexion: {
     icon: '🔐', title: 'Connexion et accès',
     html: `
-      <div class="help-box info"><b>URL :</b> <code>arwamedic-apr.sezzaghwany.workers.dev</code><br>Ouvrir depuis Chrome, Edge ou Firefox. Une connexion est requise à chaque session.</div>
+      <div class="help-box info"><b>URL :</b> <code>arwamedic-apr.sezzaghwany.workers.dev</code><br>Accessible depuis Chrome, Edge ou Firefox. Une connexion est requise à chaque session. Déconnexion automatique après <b>30 minutes</b> d'inactivité.</div>
       <table class="help-table"><thead><tr><th>Rôle</th><th>Mot de passe par défaut</th><th>Droits</th></tr></thead><tbody>
-        <tr><td><span class="help-badge" style="background:#fef3c7;color:#d97706">Administrateur</span></td><td><code>Admin2025!</code></td><td>Accès complet : saisie, modification, spécifications, audit, gestion utilisateurs</td></tr>
-        <tr><td><span class="help-badge" style="background:#dcfce7;color:#16a34a">Collaborateur</span></td><td><code>Collab2025</code></td><td>Lecture et saisie de nouveaux lots uniquement</td></tr>
+        <tr><td><span class="help-badge" style="background:#fef3c7;color:#d97706">Administrateur</span></td><td><code>Admin2025!</code></td><td>Accès complet : saisie, modification de lots, spécifications produits, audit, gestion utilisateurs</td></tr>
+        <tr><td><span class="help-badge" style="background:#dcfce7;color:#16a34a">Collaborateur</span></td><td><code>Collab2025</code></td><td>Saisie de nouveaux lots uniquement — consultation de toutes les données</td></tr>
       </tbody></table>
-      <div class="help-box warn">⚠️ <b>Changez les mots de passe par défaut</b> dès la première connexion via le bouton 🔑 en haut à droite.</div>
+      <div class="help-box warn">⚠️ <b>Changez les mots de passe par défaut</b> dès la première connexion via le bouton 🔑 dans la barre latérale.</div>
     `
   },
   onglets: {
     icon: '🗂️', title: 'Les 6 onglets',
     html: `
-      <table class="help-table"><thead><tr><th>Onglet</th><th>Description</th></tr></thead><tbody>
-        <tr><td>🏠 <b>Tableau de bord</b></td><td>Vue globale : KPIs par produit (lots analysés, NC, Cpk moyen). Boutons Analyser et Modifier.</td></tr>
-        <tr><td>📊 <b>Analyse & Graphiques</b></td><td>Carte de contrôle interactive, statistiques (Cp, Cpk, moyenne, σ), filtres, interprétation IA.</td></tr>
-        <tr><td>📐 <b>Spécifications</b></td><td>Consultation et modification des spécifications par produit. Modification réservée aux admins.</td></tr>
-        <tr><td>✏️ <b>Saisie</b></td><td>Formulaire adaptatif selon le type de produit. Liste des lots saisis avec filtres. Modification (admin).</td></tr>
-        <tr><td>🔔 <b>Alertes</b></td><td>Liste des lots non-conformes avec détail des dépassements. Badge rouge = nombre d'alertes actives.</td></tr>
-        <tr><td>📋 <b>Audit</b></td><td>Journal complet : connexions, saisies, modifications avec valeurs avant/après. Export CSV et ZIP.</td></tr>
+      <table class="help-table"><thead><tr><th>Onglet</th><th>Description</th><th>Accès</th></tr></thead><tbody>
+        <tr><td>🏠 <b>Tableau de bord</b></td><td>KPIs globaux, récapitulatif des lots par produit, dernières non-conformités</td><td>Tous</td></tr>
+        <tr><td>📊 <b>Analyse</b></td><td>Carte de contrôle, statistiques (Cp, Cpk, σ, CV…), interprétation, export rapport PNG</td><td>Tous</td></tr>
+        <tr><td>📐 <b>Spécifications</b></td><td>Fiches produits avec LSI/LSS, badges IPC/Lib par paramètre. Création et modification (admin)</td><td>Tous / Admin</td></tr>
+        <tr><td>✏️ <b>Saisie</b></td><td>Formulaire adaptatif IPC + Libération avec détection NCF en temps réel. Liste des lots saisis.</td><td>Tous</td></tr>
+        <tr><td>🔔 <b>Alertes</b></td><td>Lots non-conformes avec valeur, écart %, LSI/LSS. Boutons Analyser et Modifier (admin)</td><td>Tous</td></tr>
+        <tr><td>📋 <b>Audit</b></td><td>Journal traçabilité : connexions, saisies, modifications avec valeurs avant/après. Export CSV et ZIP</td><td>Admin</td></tr>
       </tbody></table>
+      <div class="help-box info">La <b>barre latérale</b> est rétractable (bouton ▶). Elle affiche le timer de déconnexion, la date de dernière sauvegarde et les boutons d'action rapide.</div>
     `
   },
   saisie: {
     icon: '✏️', title: "Saisie d'un nouveau lot",
     html: `
-      <div class="help-step"><div class="help-step-num">1</div><div>Cliquer sur l'onglet <b>Saisie</b> puis sur le bouton <b>+ Nouveau lot</b>.</div></div>
-      <div class="help-step"><div class="help-step-num">2</div><div>Sélectionner le <b>produit</b> — le formulaire s'adapte automatiquement au type de produit.</div></div>
-      <div class="help-step"><div class="help-step-num">3</div><div>Renseigner le <b>numéro de lot</b>, les dates (fabrication, libération, péremption) et le statut (IPC ou Libération).</div></div>
-      <div class="help-step"><div class="help-step-num">4</div><div>Saisir les <b>paramètres analytiques</b>. Les limites LSI/LSS s'affichent en temps réel à côté de chaque champ.</div></div>
-      <div class="help-step"><div class="help-step-num">5</div><div>Les valeurs <b>hors-limites</b> sont signalées immédiatement en rouge.</div></div>
-      <div class="help-step"><div class="help-step-num">6</div><div>Cliquer sur <b>Enregistrer le lot</b>. La saisie est sauvegardée sur Supabase.</div></div>
-      <div class="help-h3">Paramètres par type de produit</div>
-      <table class="help-table"><thead><tr><th>Type</th><th>Paramètres</th></tr></thead><tbody>
-        <tr><td><b>Solution Dialyse Acide</b></td><td>Sodium, Potassium, Calcium, Magnésium, Chlorures, Acétates, Glucose, pH, Poids, Rendement</td></tr>
-        <tr><td><b>Solution Dialyse Bicarbonate</b></td><td>Sodium, Chlorures, Bicarbonates, pH, Poids, Rendement</td></tr>
-        <tr><td><b>Cartouche</b></td><td>Bicarbonates, pH, Poids, Rendement</td></tr>
-        <tr><td><b>Poches stériles Chlorures</b></td><td>pH, Poids, Rendement, Chlorure de sodium, Osmolalité</td></tr>
-        <tr><td><b>Poches stériles Glucose</b></td><td>Glucose, pH, Poids, Rendement, Osmolalité, HMF</td></tr>
+      <div class="help-step"><div class="help-step-num">1</div><div>Aller sur l'onglet <b>Saisie</b> puis cliquer <b>+ Nouveau lot</b>.</div></div>
+      <div class="help-step"><div class="help-step-num">2</div><div>Sélectionner le <b>produit</b> — le formulaire s'adapte automatiquement au type (IPC + Libération).</div></div>
+      <div class="help-step"><div class="help-step-num">3</div><div>Renseigner le <b>n° de lot</b>, les dates (fabrication, libération, péremption) et choisir le mode : <b>IPC</b>, <b>Libération</b> ou <b>Les deux</b>.</div></div>
+      <div class="help-step"><div class="help-step-num">4</div><div><b>IPC :</b> saisir jusqu'à 8 résultats par paramètre. La moyenne est calculée automatiquement. Les valeurs hors limites s'affichent avec un <span style="color:var(--danger);font-weight:700">contour rouge et fond rosé</span>.</div></div>
+      <div class="help-step"><div class="help-step-num">5</div><div><b>Libération :</b> saisir la valeur analytique finale. Les champs NC s'affichent en rouge, conformes en vert.</div></div>
+      <div class="help-step"><div class="help-step-num">6</div><div>Cliquer <b>Enregistrer le lot</b>. La saisie est sauvegardée dans Supabase et apparaît dans la liste en bas de page.</div></div>
+      <div class="help-h3">Paramètres IPC et Libération par type</div>
+      <table class="help-table"><thead><tr><th>Type de produit</th><th>Paramètres Libération</th><th>Paramètres IPC</th></tr></thead><tbody>
+        <tr><td><b>Solution Dialyse Acide</b></td><td>Sodium, Potassium, Calcium, Magnésium, Chlorures, Acétates, Glucose, pH, Poids, Rendement</td><td>Chlorures, Acétates, pH</td></tr>
+        <tr><td><b>Solution Dialyse Bicarbonate</b></td><td>Sodium, Chlorures, Bicarbonates, pH, Poids, Rendement</td><td>Chlorures, Bicarbonates, pH</td></tr>
+        <tr><td><b>Cartouche</b></td><td>Bicarbonates, pH, Poids, Rendement</td><td>Aucun</td></tr>
+        <tr><td><b>Poches stériles Chlorures</b></td><td>pH, Poids, Rendement, Chlorure de sodium, Osmolalité</td><td>Chlorure de sodium, pH</td></tr>
+        <tr><td><b>Poches stériles Glucose</b></td><td>Glucose, pH, Poids, Rendement, Osmolalité, HMF</td><td>Glucose, pH</td></tr>
       </tbody></table>
+      <div class="help-box info">Un administrateur peut <b>modifier un lot saisi</b> en cliquant ✏️ sur sa ligne dans la liste. La fenêtre de modification s'adapte au statut (IPC ou Libération) du lot.</div>
     `
   },
   analyse: {
-    icon: '📊', title: 'Analyse, Graphiques et IA',
+    icon: '📊', title: 'Analyse et graphiques',
     html: `
-      <p>L'onglet Analyse permet de visualiser l'évolution d'un paramètre dans le temps et d'évaluer la capabilité du procédé.</p>
-      <div class="help-h3">Indices de capabilité</div>
-      <table class="help-table"><thead><tr><th>Valeur</th><th>Interprétation</th></tr></thead><tbody>
-        <tr><td><span class="help-badge" style="background:#dcfce7;color:#16a34a">Cp > 1,33</span></td><td>Procédé très capable — excellente maîtrise</td></tr>
-        <tr><td><span class="help-badge" style="background:#fef3c7;color:#d97706">1,00 ≤ Cp ≤ 1,33</span></td><td>Procédé acceptable — surveillance recommandée</td></tr>
-        <tr><td><span class="help-badge" style="background:#fee2e2;color:#dc2626">Cp &lt; 1,00</span></td><td>Procédé non capable — action corrective requise</td></tr>
-        <tr><td><span class="help-badge" style="background:#fff7ed;color:#ea580c">Cpk &lt; Cp</span></td><td>Procédé décentré — vérifier le réglage</td></tr>
+      <p>Sélectionner un <b>produit</b>, un <b>paramètre</b> et un <b>statut</b> (IPC ou Libération) pour afficher la carte de contrôle et les indicateurs statistiques.</p>
+      <div class="help-h3">Filtres disponibles</div>
+      <table class="help-table"><thead><tr><th>Filtre</th><th>Description</th></tr></thead><tbody>
+        <tr><td><b>Produit</b></td><td>Sélectionner le code produit (ex: PFF012)</td></tr>
+        <tr><td><b>Paramètre</b></td><td>Le paramètre à analyser (adapté au type de produit)</td></tr>
+        <tr><td><b>Statut</b></td><td>IPC ou Libération — filtré dans le titre du graphe</td></tr>
+        <tr><td><b>Période</b></td><td>Filtrer par plage de dates de fabrication</td></tr>
       </tbody></table>
-      <div class="help-h3">🤖 Interprétation IA</div>
-      <div class="help-box tip">Le bouton <b>"🤖 Interpréter avec l'IA"</b> envoie les statistiques du graphique à Claude (Anthropic) qui génère une analyse en langage naturel avec :<br>
-        • État du procédé (capable / à surveiller / non capable)<br>
-        • Points critiques à signaler<br>
-        • Recommandations concrètes BPF
+      <div class="help-h3">📋 Copier pour rapport</div>
+      <div class="help-box tip">Le bouton <b>📋 Copier pour rapport</b> effectue une <b>capture d'écran</b> de toute la zone analyse (graphe + indicateurs + interprétation) :<br>
+        • Télécharge automatiquement un fichier PNG : <code>APR_CODE_Paramètre_Statut_Date.png</code><br>
+        • Ouvre une fenêtre rapport HTML imprimable (Ctrl+P → PDF)<br>
+        • Le titre du graphe inclut le statut sélectionné
       </div>
-      <div class="help-box warn">⚠️ La fonctionnalité IA nécessite un accès à <code>api.anthropic.com</code>. Si bloquée par l'antivirus, contacter l'IT pour ajouter une exception.</div>
+      <div class="help-h3">Niveaux de capabilité Cpk</div>
+      <table class="help-table"><thead><tr><th>Cpk</th><th>Niveau</th><th>Action</th></tr></thead><tbody>
+        <tr><td>≥ 1,67</td><td style="color:#059669;font-weight:700">✅ Excellent</td><td>Surveillance normale</td></tr>
+        <tr><td>≥ 1,33</td><td style="color:#22c55e;font-weight:700">✅ Conforme BPF</td><td>Maintenir plan de contrôle</td></tr>
+        <tr><td>≥ 1,00</td><td style="color:#f59e0b;font-weight:700">⚠️ Acceptable</td><td>Renforcer surveillance IPC</td></tr>
+        <tr><td>&lt; 1,00</td><td style="color:#ef4444;font-weight:700">⛔ Non conforme</td><td>Action corrective + CAPA obligatoire</td></tr>
+      </tbody></table>
+    `
+  },
+  specs: {
+    icon: '📐', title: 'Spécifications produits',
+    html: `
+      <p>L'onglet Spécifications affiche les fiches produits avec leurs <b>valeurs cibles</b>, <b>tolérances</b> et <b>limites LSI/LSS</b>. Les badges <span class="help-badge" style="background:#dbeafe;color:#1d4ed8">IPC</span> et <span class="help-badge" style="background:#dcfce7;color:#16a34a">Lib</span> indiquent le rôle de chaque paramètre. Le pH affiche <span class="help-badge" style="background:#dbeafe;color:#1d4ed8">IPC</span> <span class="help-badge" style="background:#dcfce7;color:#16a34a">Lib</span> pour tous les types sauf Cartouche.</p>
+      <div class="help-h3">Tolérances standard</div>
+      <table class="help-table"><thead><tr><th>Paramètre</th><th>Tolérance</th><th>Type</th></tr></thead><tbody>
+        <tr><td>Sodium</td><td>±2,5%</td><td>Calculée sur valeur cible</td></tr>
+        <tr><td>Potassium, Calcium, Magnésium, Chlorures, Acétates, Glucose, Bicarbonates, Chlorure de sodium</td><td>±5%</td><td>Calculée sur valeur cible</td></tr>
+        <tr><td>Rendement</td><td>Fixe 95% – 105%</td><td>Absolue</td></tr>
+        <tr><td>pH, Osmolalité</td><td>Limites fixes par type de produit</td><td>LSI/LSS directs</td></tr>
+        <tr><td>Poids</td><td>±5% autour du poids cible du produit</td><td>Calculée</td></tr>
+        <tr><td>HMF</td><td>LSS = 0,25 mg/L (pas de LSI)</td><td>Absolue</td></tr>
+      </tbody></table>
+      <div class="help-h3">Créer ou modifier un produit (Admin)</div>
+      <div class="help-step"><div class="help-step-num">1</div><div>Cliquer <b>+ Ajouter un produit</b> ou le bouton <b>Modifier</b> sur une fiche existante.</div></div>
+      <div class="help-step"><div class="help-step-num">2</div><div>Le tableau des paramètres permet de cocher <b>IPC</b> et/ou <b>Lib</b> indépendamment pour chaque paramètre.</div></div>
+      <div class="help-step"><div class="help-step-num">3</div><div>Renseigner la <b>valeur cible Lib</b>. La valeur cible IPC est facultative (à remplir uniquement si différente de Lib).</div></div>
+      <div class="help-step"><div class="help-step-num">4</div><div>La <b>tolérance</b> et l'<b>unité</b> sont modifiables par paramètre. Cliquer <b>➕ Ajouter un paramètre</b> pour un paramètre inédit.</div></div>
+      <div class="help-box info">Toute modification est tracée dans l'audit avec les valeurs avant/après et le commentaire de modification.</div>
     `
   },
   audit: {
     icon: '📋', title: 'Audit trail et sauvegarde',
     html: `
-      <p>Chaque action est enregistrée automatiquement : connexions, saisies, modifications, suppressions.</p>
+      <p>Chaque action est enregistrée automatiquement : <b>connexions</b>, <b>déconnexions</b>, <b>saisies de lots</b>, <b>modifications</b> et <b>suppressions</b>. Accessible aux administrateurs uniquement.</p>
       <div class="help-h3">Colonne Modifications (avant → après)</div>
-      <div class="help-box info">Pour chaque modification de lot ou de produit, les valeurs <span style="color:#dc2626;text-decoration:line-through">avant</span> et <span style="color:#16a34a;font-weight:700">après</span> sont affichées champ par champ.</div>
+      <div class="help-box info">Pour chaque modification, les valeurs <span style="color:#dc2626;font-weight:700;text-decoration:line-through">avant</span> et <span style="color:#16a34a;font-weight:700">après</span> sont affichées champ par champ dans la colonne Modifications.</div>
+      <div class="help-h3">Filtres du journal</div>
+      <table class="help-table"><thead><tr><th>Filtre</th><th>Options</th></tr></thead><tbody>
+        <tr><td>Utilisateur</td><td>Filtrer par collaborateur</td></tr>
+        <tr><td>Action</td><td>connexion, déconnexion, lot_saisi, lot_modifié, produit, utilisateur</td></tr>
+        <tr><td>Période</td><td>Date début / Date fin</td></tr>
+      </tbody></table>
       <div class="help-h3">💾 Sauvegarder tout (ZIP)</div>
-      <p>Le bouton <b>💾 Sauvegarder tout (ZIP)</b> exporte en une seule fois les 5 tables :</p>
-      <table class="help-table"><thead><tr><th>Fichier CSV</th><th>Contenu</th><th>Criticité</th></tr></thead><tbody>
-        <tr><td><code>lots.csv</code></td><td>Tous les lots avec paramètres analytiques</td><td><span class="help-badge" style="background:#fee2e2;color:#dc2626">🔴 Critique</span></td></tr>
-        <tr><td><code>produits.csv</code></td><td>Produits et spécifications</td><td><span class="help-badge" style="background:#fef3c7;color:#d97706">🟡 Important</span></td></tr>
-        <tr><td><code>utilisateurs.csv</code></td><td>Logins et rôles (sans mots de passe)</td><td><span class="help-badge" style="background:#fef3c7;color:#d97706">🟡 Important</span></td></tr>
-        <tr><td><code>limites_fixes.csv</code></td><td>pH, Osmolalité par type</td><td><span class="help-badge" style="background:#f0fdf4;color:#16a34a">🟢 Moyen</span></td></tr>
-        <tr><td><code>audit_logs.csv</code></td><td>Journal complet des actions</td><td><span class="help-badge" style="background:#f0fdf4;color:#16a34a">🟢 Moyen</span></td></tr>
+      <table class="help-table"><thead><tr><th>Fichier CSV</th><th>Contenu</th></tr></thead><tbody>
+        <tr><td><code>lots.csv</code></td><td>Tous les lots saisis avec paramètres analytiques</td></tr>
+        <tr><td><code>produits.csv</code></td><td>Produits et spécifications complètes</td></tr>
+        <tr><td><code>utilisateurs.csv</code></td><td>Logins et rôles (sans mots de passe)</td></tr>
+        <tr><td><code>limites_fixes.csv</code></td><td>Limites pH et Osmolalité par type</td></tr>
+        <tr><td><code>audit_logs.csv</code></td><td>Journal complet des actions</td></tr>
       </tbody></table>
-      <div class="help-box tip">✅ <b>Recommandation :</b> Effectuer une sauvegarde ZIP mensuelle et l'archiver sur SharePoint ou disque réseau.</div>
-    `
-  },
-  specs: {
-    icon: '📐', title: 'Gestion des spécifications',
-    html: `
-      <p>L'onglet Spécifications affiche tous les produits avec leurs limites analytiques. Les administrateurs peuvent modifier les spécifications.</p>
-      <table class="help-table"><thead><tr><th>Paramètre</th><th>Tolérance</th></tr></thead><tbody>
-        <tr><td><b>Sodium</b></td><td>±2,5% autour de la valeur cible</td></tr>
-        <tr><td><b>Paramètres chimiques</b></td><td>±5% autour de la valeur cible</td></tr>
-        <tr><td><b>Rendement</b></td><td>Fixe : 95% — 105%</td></tr>
-        <tr><td><b>pH</b></td><td>Limites fixes par type de produit</td></tr>
-        <tr><td><b>Osmolalité</b></td><td>Limites fixes par type de produit</td></tr>
-        <tr><td><b>Poids</b></td><td>±5% autour du poids cible par produit</td></tr>
-      </tbody></table>
-      <div class="help-box info">Toute modification de spécification est tracée dans l'audit avec les valeurs avant/après.</div>
+      <div class="help-box tip">✅ <b>Recommandation :</b> Effectuer une sauvegarde ZIP au moins une fois par mois et l'archiver sur SharePoint ou disque réseau.</div>
     `
   },
   users: {
     icon: '👥', title: 'Gestion des utilisateurs (Admin)',
     html: `
-      <p>Accessible depuis le bouton <b>👥 Utilisateurs</b> en haut à droite (administrateurs uniquement).</p>
-      <div class="help-step"><div class="help-step-num">+</div><div><b>Ajouter</b> un utilisateur : renseigner login, nom, rôle et email, puis cliquer Ajouter.</div></div>
-      <div class="help-step"><div class="help-step-num">🔑</div><div><b>Réinitialiser</b> le mot de passe d'un utilisateur via le bouton 🔑 sur sa ligne.</div></div>
-      <div class="help-step"><div class="help-step-num">✉️</div><div><b>Envoyer les identifiants</b> par email via le bouton ✉️ (ouvre Outlook avec un email pré-rempli).</div></div>
+      <p>Accessible depuis le bouton <b>👥</b> dans la barre latérale (administrateurs uniquement).</p>
+      <div class="help-step"><div class="help-step-num">+</div><div><b>Ajouter</b> un utilisateur : renseigner login, nom, rôle, email et mot de passe initial, puis cliquer Ajouter.</div></div>
+      <div class="help-step"><div class="help-step-num">🔑</div><div><b>Réinitialiser</b> le mot de passe via le bouton 🔑 sur la ligne de l'utilisateur.</div></div>
+      <div class="help-step"><div class="help-step-num">✉️</div><div><b>Envoyer les identifiants</b> par email via le bouton ✉️ (ouvre le client mail avec un email pré-rempli).</div></div>
       <div class="help-step"><div class="help-step-num">🗑</div><div><b>Supprimer</b> un utilisateur — impossible de supprimer le dernier administrateur.</div></div>
-      <div class="help-box warn">⚠️ Il doit toujours y avoir au moins un administrateur actif dans l'application.</div>
+      <div class="help-box warn">⚠️ Il doit toujours y avoir au moins un administrateur actif. Le login <code>s.ezzaghwany</code> ne peut pas être supprimé.</div>
     `
   },
   indicateurs: {
     icon: '📈', title: 'Indicateurs statistiques',
     html: `
-      <p style="margin:0 0 14px;color:var(--text2)">L'interprétation distingue deux catégories de paramètres avec des causes d'écart différentes.</p>
+      <p style="margin:0 0 14px;color:var(--text2)">L'interprétation distingue deux catégories de paramètres :</p>
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:200px;background:#fef3c7;border-left:4px solid #f59e0b;border-radius:6px;padding:10px 14px">
           <div style="font-weight:700;color:#92400e;margin-bottom:4px">🔧 PROCESS : Poids, Rendement</div>
@@ -4041,60 +4153,51 @@ const HELP_SECTIONS = {
         </div>
         <div style="flex:1;min-width:200px;background:#dbeafe;border-left:4px solid #3b82f6;border-radius:6px;padding:10px 14px">
           <div style="font-weight:700;color:#1e3a5f;margin-bottom:4px">🔬 QC : Dosages, pH, Osmolalité…</div>
-          <div style="font-size:12px;color:#1e40af">Étalonnage · Méthode analytique · Techniciens · Formulation</div>
+          <div style="font-size:12px;color:#1e40af">Étalonnage · Méthode analytique · Réactifs · Formulation</div>
         </div>
       </div>
       <table class="help-table">
-        <thead><tr><th>Indicateur</th><th>Formule</th><th>Interprétation</th><th>Seuil</th></tr></thead>
+        <thead><tr><th>Indicateur</th><th>Formule</th><th>Interprétation</th><th>Seuil alerte</th></tr></thead>
         <tbody>
-          <tr><td><b>Cp</b></td><td>(LSS-LSI)/6σ</td><td>Capabilité potentielle (sans centrage). Compare tolérance vs dispersion.</td><td>≥1.33 BPF</td></tr>
-          <tr><td><b>Cpk</b></td><td>min[(LSS-x̄)/3σ, (x̄-LSI)/3σ]</td><td>Capabilité réelle. Combine dispersion ET centrage. Si Cpk ≪ Cp → décentré.</td><td>≥1.33 BPF</td></tr>
-          <tr><td><b>Biais %</b></td><td>(x̄-cible)/|cible|×100</td><td>Décentrage vs valeur nominale. &gt;10% = significatif.</td><td>&lt;10%</td></tr>
-          <tr><td><b>CV %</b></td><td>(σ/x̄)×100</td><td>Variabilité relative. Permet comparaison entre paramètres d'unités différentes.</td><td>&lt;3%</td></tr>
-          <tr><td><b>Skewness</b></td><td>Moment ordre 3</td><td>Asymétrie. 0=symétrique. &gt;0=queue LSS. &lt;0=queue LSI.</td><td>|&lt;1|</td></tr>
-          <tr><td><b>Tendance R²</b></td><td>Régression linéaire</td><td>Dérive progressive chronologique. R²&gt;0.4 = tendance significative.</td><td>R²&lt;0.4</td></tr>
-          <tr><td><b>LCI/LCS</b></td><td>x̄ ± 3σ</td><td>Limites statistiques (≠ spécification). Point hors LCI/LCS = cause assignable.</td><td>—</td></tr>
-        </tbody>
-      </table>
-      <div style="margin:16px 0 8px;font-weight:700;font-size:13px">Seuils Cpk / Cpk</div>
-      <table class="help-table">
-        <thead><tr><th>Valeur</th><th>Interprétation</th><th>Action</th></tr></thead>
-        <tbody>
-          <tr><td>≥ 1.67</td><td style="color:#059669;font-weight:600">Excellent</td><td>Surveillance normale</td></tr>
-          <tr><td>≥ 1.33</td><td style="color:#22c55e;font-weight:600">Conforme BPF</td><td>Maintenir plan de contrôle</td></tr>
-          <tr><td>≥ 1.00</td><td style="color:#f59e0b;font-weight:600">Acceptable</td><td>Renforcer surveillance IPC</td></tr>
-          <tr><td>&lt; 1.00</td><td style="color:#ef4444;font-weight:600">Non conforme</td><td>Action corrective + CAPA</td></tr>
+          <tr><td><b>Cp</b></td><td>(LSS−LSI) / 6σ</td><td>Capabilité potentielle — compare tolérance vs dispersion, sans tenir compte du centrage</td><td>≥ 1,33 (BPF)</td></tr>
+          <tr><td><b>Cpk</b></td><td>min[(LSS−x̄)/3σ, (x̄−LSI)/3σ]</td><td>Capabilité réelle — combine dispersion ET centrage. Si Cpk ≪ Cp → procédé décentré</td><td>≥ 1,33 (BPF)</td></tr>
+          <tr><td><b>CV %</b></td><td>(σ / x̄) × 100</td><td>Variabilité relative. Permet de comparer des paramètres d'unités différentes</td><td>&lt; 3%</td></tr>
+          <tr><td><b>Tendance R²</b></td><td>Régression linéaire sur l'ordre des lots</td><td>Dérive progressive dans le temps. R² &gt; 0,4 = tendance significative</td><td>R² &lt; 0,4</td></tr>
+          <tr><td><b>LCI / LCS</b></td><td>x̄ ± 3σ</td><td>Limites de contrôle statistiques (≠ spécifications). Un point hors LCI/LCS = cause assignable probable</td><td>—</td></tr>
+          <tr><td><b>% NC</b></td><td>Lots hors [LSI, LSS] / n</td><td>Taux de non-conformité sur la période analysée</td><td>0%</td></tr>
         </tbody>
       </table>
       <div style="margin:16px 0 8px;font-weight:700;font-size:13px">Actions recommandées par situation</div>
       <table class="help-table">
         <thead><tr><th>Situation</th><th>PROCESS (Poids, Rendement)</th><th>QC (Dosages, pH…)</th></tr></thead>
         <tbody>
-          <tr><td>Cpk&lt;1, Biais élevé</td><td>Réglage doseurs/vannes · Réviser recette</td><td>Étalonnage · Standards · Matières premières</td></tr>
-          <tr><td>CV&gt;3%</td><td>Audit équipement · Maintenance préventive</td><td>Répétabilité méthode · Formation techniciens</td></tr>
-          <tr><td>R²&gt;0.4 (dérive)</td><td>Usure mécanique · Planifier maintenance</td><td>Dérive réactifs · Étalonnage appareil</td></tr>
-          <tr><td>|Skewness|&gt;1</td><td>Changement lot MP · Opérateur · Env.</td><td>Outliers · Vérifier données brutes</td></tr>
-          <tr><td>NC&gt;0</td><td colspan="2" style="text-align:center">Fiche déviation · Investigation · CAPA obligatoire</td></tr>
+          <tr><td>Cpk &lt; 1,00</td><td>Réglage doseurs/vannes · Réviser recette</td><td>Étalonnage · Vérifier standards · Matières premières</td></tr>
+          <tr><td>CV &gt; 3%</td><td>Audit équipement · Maintenance préventive</td><td>Répétabilité méthode · Formation techniciens</td></tr>
+          <tr><td>R² &gt; 0,4 (dérive)</td><td>Usure mécanique · Planifier maintenance</td><td>Dérive réactifs · Réétalonnage appareil</td></tr>
+          <tr><td>NC &gt; 0</td><td colspan="2" style="text-align:center">Fiche déviation + Investigation + CAPA obligatoire</td></tr>
         </tbody>
       </table>
     `
   },
-    depannage: {
+  depannage: {
     icon: '🔧', title: 'Dépannage',
     html: `
       <table class="help-table"><thead><tr><th>Problème</th><th>Solution</th></tr></thead><tbody>
-        <tr><td>Données non chargées au démarrage</td><td>Vérifier la connexion internet. L'app utilise les données embarquées si Supabase est inaccessible.</td></tr>
-        <tr><td>Erreur 401 sur l'IA</td><td>La clé API Anthropic est expirée. En générer une nouvelle sur <code>console.anthropic.com</code> et contacter l'administrateur.</td></tr>
-        <tr><td>IA bloquée (ERR_NETWORK_IO_SUSPENDED)</td><td>Kaspersky bloque <code>api.anthropic.com</code>. Demander à l'IT d'ajouter <code>*.anthropic.com</code> dans les exclusions.</td></tr>
-        <tr><td>Bouton Modifier grisé</td><td>Action réservée aux administrateurs.</td></tr>
-        <tr><td>Oubli de mot de passe</td><td>Un administrateur peut réinitialiser le mot de passe depuis le bouton 👥.</td></tr>
-        <tr><td>Perte de données</td><td>Utiliser le dernier fichier ZIP exporté depuis l'onglet Audit pour restaurer.</td></tr>
+        <tr><td>Données non chargées au démarrage</td><td>Vérifier la connexion internet. L'appli utilise les données embarquées (973 lots historiques) si Supabase est inaccessible.</td></tr>
+        <tr><td>Le tableau des lots n'apparaît pas dans Saisie</td><td>Naviguer vers un autre onglet puis revenir sur Saisie pour forcer le rechargement.</td></tr>
+        <tr><td>Bouton Modifier / Supprimer grisé ou absent</td><td>Action réservée aux administrateurs. Se connecter avec un compte admin.</td></tr>
+        <tr><td>Alerte affiche le mauvais type de contrôle (IPC au lieu de Libération)</td><td>Résolu : le bouton Modifier depuis les Alertes ouvre désormais le bon statut.</td></tr>
+        <tr><td>Capture rapport échoue</td><td>Le navigateur peut bloquer la capture. Essayer depuis Chrome. En cas d'échec, le graphe seul est téléchargé.</td></tr>
+        <tr><td>Oubli de mot de passe</td><td>Un administrateur peut réinitialiser le mot de passe depuis le bouton 👥 dans la barre latérale.</td></tr>
+        <tr><td>Déconnexion intempestive</td><td>L'appli se déconnecte après 30 min d'inactivité. La barre de progression dans la sidebar indique le temps restant.</td></tr>
+        <tr><td>Perte de données</td><td>Utiliser le dernier fichier ZIP exporté depuis l'onglet Audit pour restaurer les données.</td></tr>
       </tbody></table>
       <div class="help-h3">Informations techniques</div>
       <div class="help-box info">
         <b>Hébergement :</b> Cloudflare Pages — <code>arwamedic-apr.sezzaghwany.workers.dev</code><br>
         <b>Base de données :</b> Supabase (PostgreSQL) — <code>sthaazqccmtjzchsmrzu.supabase.co</code><br>
-        <b>IA :</b> Claude Sonnet 4 (Anthropic) — <code>api.anthropic.com</code>
+        <b>Données historiques embarquées :</b> 973 lots (7 produits) · 34 produits REF<br>
+        <b>Navigateurs supportés :</b> Chrome 90+, Edge 90+, Firefox 88+
       </div>
     `
   }
