@@ -2865,7 +2865,6 @@ async function saveLot(){
   updateAlertBadge();
   showSaisieForm(false);
 }
-
 function resetForm(){
   document.getElementById('s-lot').value='';
   document.getElementById('s-fab').value='';
@@ -2874,9 +2873,34 @@ function resetForm(){
   const code=document.getElementById('s-code').value;
   const ref=getRef(code);
   const params=PARAMS_BY_TYPE[ref?.Type||""]||[];
+  const ipcParams=IPC_PARAMS_BY_TYPE[ref?.Type||""]||[];
+  // Réinitialiser les champs Libération
   params.forEach(p=>{
-    const el=document.getElementById(`sv-${p.replace(/\s+/g,'_')}`);
-    if(el){el.value='';el.classList.remove('input-nc');}
+    const pid=p.replace(/\s+/g,'_');
+    const el=document.getElementById('lib-'+pid);
+    if(el){
+      el.value='';
+      el.style.borderColor='';
+      el.style.background='';
+    }
+  });
+  // Réinitialiser les champs IPC (jusqu'à 8 répétitions)
+  ipcParams.forEach(p=>{
+    const pid=p.replace(/\s+/g,'_');
+    for(let i=0;i<IPC_MAX_REPEATS;i++){
+      const el=document.getElementById('ipc-'+pid+'-'+i);
+      if(el){
+        el.value='';
+        el.style.borderColor='';
+        el.style.background='';
+        el.style.boxShadow='';
+        el._nc=false;
+        el.title='';
+      }
+    }
+    // Réinitialiser la moyenne affichée
+    const mean=document.getElementById('ipc-mean-'+pid);
+    if(mean) mean.innerHTML='';
   });
 }
 
